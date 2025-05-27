@@ -532,43 +532,62 @@ async def get_overview(request: Request):
         raise HTTPException(status_code=500, detail="Kunne ikke hente oversigtsdata")
 
 @app.get("/api/themes")
-async def get_themes(days: int = Query(7, description="Number of days to look back")):
+async def get_themes(request: Request, days: int = Query(7, description="Number of days to look back")):
     """Get theme analysis with sentiment"""
-    interviews = await fetch_vapi_calls()
-    transcripts = [interview['transcript'] for interview in interviews if interview['transcript']]
-    themes_data = extract_themes_with_clustering(transcripts)
-    
-    # Process themes for frontend
-    processed_themes = []
-    for theme_name, mentions in themes_data.items():
-        sentiment_counts = Counter(mention['sentiment'] for mention in mentions)
+    try:
+        # Use same cached data as overview
+        cache_key = "vapi_calls"
+        current_time = time.time()
         
-        # Get sample quotes for each sentiment
-        quotes_by_sentiment = defaultdict(list)
-        for mention in mentions:
-            if len(quotes_by_sentiment[mention['sentiment']]) < 3:
-                quotes_by_sentiment[mention['sentiment']].append({
-                    'text': mention['text'][:100] + '...' if len(mention['text']) > 100 else mention['text'],
-                    'timestamp': mention['timestamp'],
-                    'supermarket': mention['supermarket']
-                })
+        if cache_key in api_cache:
+            cached_data, timestamp = api_cache[cache_key]
+            if current_time - timestamp < 180:  # 3 minute cache
+                interviews = cached_data
+            else:
+                interviews = await fetch_vapi_calls()
+                api_cache[cache_key] = (interviews, current_time)
+        else:
+            interviews = await fetch_vapi_calls()
+            api_cache[cache_key] = (interviews, current_time)
         
-        processed_themes.append({
-            'name': theme_name.replace('_', ' ').title(),
-            'total_mentions': len(mentions),
-            'sentiment_breakdown': {
-                'positive': sentiment_counts.get('positive', 0),
-                'neutral': sentiment_counts.get('neutral', 0),
-                'negative': sentiment_counts.get('negative', 0)
-            },
-            'sample_quotes': dict(quotes_by_sentiment),
-            'is_new': False  # You could implement logic to detect new themes
-        })
-    
-    # Sort by total mentions
-    processed_themes.sort(key=lambda x: x['total_mentions'], reverse=True)
-    
-    return {"themes": processed_themes}
+        transcripts = [interview['transcript'] for interview in interviews if interview['transcript']]
+        themes_data = extract_themes_with_clustering(transcripts)
+        
+        # Process themes for frontend
+        processed_themes = []
+        for theme_name, mentions in themes_data.items():
+            sentiment_counts = Counter(mention['sentiment'] for mention in mentions)
+            
+            # Get sample quotes for each sentiment
+            quotes_by_sentiment = defaultdict(list)
+            for mention in mentions:
+                if len(quotes_by_sentiment[mention['sentiment']]) < 3:
+                    quotes_by_sentiment[mention['sentiment']].append({
+                        'text': mention['text'][:100] + '...' if len(mention['text']) > 100 else mention['text'],
+                        'timestamp': mention['timestamp'],
+                        'supermarket': mention['supermarket']
+                    })
+            
+            processed_themes.append({
+                'name': theme_name.replace('_', ' ').title(),
+                'total_mentions': len(mentions),
+                'sentiment_breakdown': {
+                    'positive': sentiment_counts.get('positive', 0),
+                    'neutral': sentiment_counts.get('neutral', 0),
+                    'negative': sentiment_counts.get('negative', 0)
+                },
+                'sample_quotes': dict(quotes_by_sentiment),
+                'is_new': False  # You could implement logic to detect new themes
+            })
+        
+        # Sort by total mentions
+        processed_themes.sort(key=lambda x: x['total_mentions'], reverse=True)
+        
+        logger.info(f"Themes: processed {len(processed_themes)} themes")
+        return {"themes": processed_themes}
+    except Exception as e:
+        logger.error(f"Error in get_themes: {e}")
+        raise HTTPException(status_code=500, detail="Kunne ikke hente temaer")
 
 @app.get("/api/ratings")
 async def get_ratings():
