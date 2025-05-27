@@ -485,12 +485,16 @@ const App = () => {
     setError(null);
     
     try {
+      console.log('Fetching dashboard data...');
+      
       const [overviewData, themesData, ratingsData, interviewsData] = await Promise.all([
         apiCall('overview'),
         apiCall('themes'),
         apiCall('ratings'),
         apiCall('interviews')
       ]);
+
+      console.log('API responses:', { overviewData, themesData, ratingsData, interviewsData });
 
       setOverview(overviewData);
       setThemes(themesData.themes || []);
