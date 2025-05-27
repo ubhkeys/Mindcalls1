@@ -467,30 +467,55 @@ def extract_themes_with_clustering(transcripts: List[str]) -> Dict[str, List[Dic
     return dict(themes)
 
 @app.get("/api/overview")
-async def get_overview():
-    """Get dashboard overview statistics"""
-    interviews = await fetch_vapi_calls()
-    
-    total_interviews = len(interviews)
-    active_interviews = len([i for i in interviews if i['status'] == 'active'])
-    
-    if total_interviews > 0:
-        avg_duration = sum(interview['duration'] for interview in interviews) / total_interviews
-    else:
-        avg_duration = 0
-    
-    # Calculate trends (mock calculation for now)
-    today_interviews = len([i for i in interviews if datetime.fromisoformat(i['timestamp'].replace('Z', '+00:00')).date() == datetime.now().date()])
-    yesterday_interviews = max(1, total_interviews // 4)  # Prevent division by zero
-    trend = ((today_interviews - yesterday_interviews) / yesterday_interviews * 100) if yesterday_interviews > 0 else 0
-    
-    return {
-        "total_interviews": total_interviews,
-        "active_interviews": active_interviews,
-        "avg_duration": round(avg_duration),
-        "trend_percentage": round(trend, 1),
-        "assistant_name": ASSISTANT_NAME
-    }
+async def get_overview(request: Request):
+    """Get dashboard overview statistics with caching"""
+    try:
+        def fetch_overview_data():
+            return asyncio.run(fetch_vapi_calls())
+        
+        interviews = get_cached_or_fetch("vapi_calls", fetch_overview_data, 180)  # 3 minute cache
+        
+        total_interviews = len(interviews)
+        active_interviews = len([i for i in interviews if i['status'] == 'active'])
+        
+        if total_interviews > 0:
+            avg_duration = sum(interview['duration'] for interview in interviews) / total_interviews
+        else:
+            avg_duration = 0
+        
+        # Calculate trends
+        today = datetime.now().date()
+        today_interviews = 0
+        yesterday_interviews = 0
+        
+        for interview in interviews:
+            try:
+                interview_date = datetime.fromisoformat(interview['timestamp'].replace('Z', '+00:00')).date()
+                if interview_date == today:
+                    today_interviews += 1
+                elif interview_date == today - timedelta(days=1):
+                    yesterday_interviews += 1
+            except:
+                continue
+        
+        if yesterday_interviews > 0:
+            trend = ((today_interviews - yesterday_interviews) / yesterday_interviews * 100)
+        else:
+            trend = 100 if today_interviews > 0 else 0
+        
+        logger.info(f"Overview: {total_interviews} total, {active_interviews} active, {avg_duration:.1f}s avg")
+        
+        return {
+            "total_interviews": total_interviews,
+            "active_interviews": active_interviews,
+            "avg_duration": round(avg_duration),
+            "trend_percentage": round(trend, 1),
+            "assistant_name": ASSISTANT_NAME,
+            "last_updated": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error in get_overview: {e}")
+        raise HTTPException(status_code=500, detail="Kunne ikke hente oversigtsdata")
 
 @app.get("/api/themes")
 async def get_themes(days: int = Query(7, description="Number of days to look back")):
