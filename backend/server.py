@@ -438,7 +438,8 @@ async def get_interviews(
 @app.get("/api/supermarkets")
 async def get_supermarkets():
     """Get list of supermarkets from interviews"""
-    supermarkets = list(set(interview['supermarket'] for interview in MOCK_INTERVIEWS))
+    interviews = await fetch_vapi_calls()
+    supermarkets = list(set(interview['supermarket'] for interview in interviews))
     return {"supermarkets": sorted(supermarkets)}
 
 @app.post("/api/chat")
