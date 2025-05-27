@@ -604,7 +604,8 @@ def test_theme_specific_quotes(tester):
             "udvalg": ["udvalg", "varer", "sortiment", "produkter", "selection"],
             "personale": ["personale", "kassedame", "ekspedient", "service", "hjælp"],
             "priser": ["pris", "billig", "dyr", "høj", "rimelig"],
-            "indretning": ["indretning", "overskuelig", "navigation", "stor", "lille"]
+            "indretning": ["indretning", "overskuelig", "navigation", "stor", "lille"],
+            "atmosfære": ["atmosfære", "stemning", "miljø", "hyggelig", "dejlig", "rart"]
         }
         
         found_themes = {}
