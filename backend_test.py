@@ -251,11 +251,42 @@ class VapiDashboardTester:
                 
         return all_passed
 
+    def test_vapi_connection(self):
+        """Test the Vapi API connection"""
+        success, data = self.run_test(
+            "Vapi API Connection",
+            "GET",
+            "vapi/test"
+        )
+        
+        if success:
+            # Validate response structure
+            if "status" not in data:
+                print("❌ Missing 'status' field in response")
+                self.failures.append("Vapi API Connection: Missing 'status' field")
+                return False
+                
+            # Check if connection was successful
+            if data["status"] != "success":
+                print(f"❌ Vapi API connection failed: {data.get('message', 'No error message')}")
+                self.failures.append(f"Vapi API Connection: {data.get('message', 'Connection failed')}")
+                return False
+                
+            # Check if we got real data
+            if "calls_count" in data and data["calls_count"] > 0:
+                print(f"✅ Successfully connected to Vapi API - Found {data['calls_count']} calls")
+            else:
+                print("⚠️ Connected to Vapi API but found 0 calls")
+                
+            return True
+        return False
+        
     def run_all_tests(self):
         """Run all API tests"""
         print("🚀 Starting Vapi Dashboard API Tests")
         
         tests = [
+            self.test_vapi_connection,
             self.test_overview_endpoint,
             self.test_themes_endpoint,
             self.test_ratings_endpoint,
