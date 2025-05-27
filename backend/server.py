@@ -118,17 +118,149 @@ VAPI_ASSISTANT_ID = os.environ.get('VAPI_ASSISTANT_ID')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 ASSISTANT_NAME = os.environ.get('ASSISTANT_NAME', 'Supermarket int. dansk')
 
-# Validate required environment variables
-if not VAPI_API_KEY:
-    logger.warning("VAPI_API_KEY not found in environment variables")
-if not VAPI_ASSISTANT_ID:
-    logger.warning("VAPI_ASSISTANT_ID not found in environment variables")
-if not OPENAI_API_KEY:
-    logger.warning("OPENAI_API_KEY not found in environment variables")
+# JWT Secret for authentication
+JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production')
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_HOURS = 24
 
-# Set OpenAI API key
-if OPENAI_API_KEY:
-    openai.api_key = OPENAI_API_KEY
+# Access codes - In production, store these in database
+VALID_ACCESS_CODES = {
+    'SUPER2024': 'Supermarket Premium Access',
+    'VAPI001': 'Basic Dashboard Access', 
+    'DEMO123': 'Demo Access',
+    'BETA2024': 'Beta Tester Access'
+}
+
+# Store user sessions (in production, use Redis or database)
+user_sessions = {}
+registered_users = {}
+
+# Pydantic models for authentication
+class LoginRequest(BaseModel):
+    email: str
+    access_code: str
+
+class UserSession(BaseModel):
+    email: str
+    access_code: str
+    access_level: str
+    created_at: datetime
+    
+# Security
+security = HTTPBearer(auto_error=False)
+
+def create_access_token(email: str, access_code: str):
+    """Create JWT access token"""
+    payload = {
+        'email': email,
+        'access_code': access_code,
+        'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
+        'iat': datetime.utcnow()
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return token
+
+def verify_access_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify JWT access token"""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Adgangskode påkrævet")
+    
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get('email')
+        access_code = payload.get('access_code')
+        
+        if not email or not access_code:
+            raise HTTPException(status_code=401, detail="Ugyldig adgangstoken")
+            
+        # Verify access code is still valid
+        if access_code not in VALID_ACCESS_CODES:
+            raise HTTPException(status_code=401, detail="Adgangskode er ikke længere gyldig")
+            
+        return {'email': email, 'access_code': access_code, 'access_level': VALID_ACCESS_CODES[access_code]}
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Adgangstoken er udløbet")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Ugyldig adgangstoken")
+
+# Authentication endpoints
+@app.post("/api/auth/login")
+async def login(request: LoginRequest):
+    """Authenticate user with email and access code"""
+    try:
+        # Validate access code
+        if request.access_code not in VALID_ACCESS_CODES:
+            logger.warning(f"Invalid access code attempted: {request.access_code}")
+            raise HTTPException(status_code=401, detail="Ugyldig adgangskode")
+        
+        # Simple email validation
+        if '@' not in request.email or '.' not in request.email.split('@')[1]:
+            raise HTTPException(status_code=400, detail="Ugyldig email adresse")
+        
+        # Create access token
+        access_token = create_access_token(request.email, request.access_code)
+        
+        # Store user session
+        user_id = hashlib.md5(request.email.encode()).hexdigest()
+        user_sessions[user_id] = UserSession(
+            email=request.email,
+            access_code=request.access_code,
+            access_level=VALID_ACCESS_CODES[request.access_code],
+            created_at=datetime.utcnow()
+        )
+        
+        # Store in registered users
+        registered_users[request.email] = {
+            'access_code': request.access_code,
+            'access_level': VALID_ACCESS_CODES[request.access_code],
+            'first_login': datetime.utcnow().isoformat(),
+            'last_login': datetime.utcnow().isoformat()
+        }
+        
+        logger.info(f"Successful login: {request.email} with code {request.access_code}")
+        
+        return {
+            'access_token': access_token,
+            'token_type': 'bearer',
+            'email': request.email,
+            'access_level': VALID_ACCESS_CODES[request.access_code],
+            'expires_in': JWT_EXPIRATION_HOURS * 3600
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Loginproblem - prøv igen")
+
+@app.post("/api/auth/validate")
+async def validate_token(user: dict = Depends(verify_access_token)):
+    """Validate current access token"""
+    return {
+        'valid': True,
+        'email': user['email'],
+        'access_level': user['access_level']
+    }
+
+@app.get("/api/auth/logout")
+async def logout(user: dict = Depends(verify_access_token)):
+    """Logout user"""
+    # In a real app, you'd blacklist the token
+    return {'message': 'Logget ud succesfuldt'}
+
+@app.get("/api/admin/users")
+async def get_users(user: dict = Depends(verify_access_token)):
+    """Get registered users (admin only)"""
+    # Simple admin check - in production, implement proper role-based access
+    if 'Premium' not in user.get('access_level', ''):
+        raise HTTPException(status_code=403, detail="Adgang nægtet")
+    
+    return {
+        'total_users': len(registered_users),
+        'users': list(registered_users.keys()),
+        'access_levels': [info['access_level'] for info in registered_users.values()]
+    }
 
 # Simple cache for API responses
 api_cache = {}
