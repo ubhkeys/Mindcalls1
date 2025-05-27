@@ -663,51 +663,41 @@ def extract_themes_with_clustering(transcripts: List[str]) -> Dict[str, List[Dic
                 relevant_quote = transcript  # fallback
                 
                 # Find the best user quote (not AI)
-                for sentence in sentences:
-                    sentence_lower = sentence.lower()
-                    sentence_stripped = sentence.strip()
-                    
-                    # Skip AI responses - only include user responses
-                    if sentence_stripped.startswith('AI:') or sentence_stripped.startswith('ai:'):
-                        continue
-                    
-                    # Look for user responses or direct customer feedback
-                    if (sentence_stripped.startswith('User:') or sentence_stripped.startswith('user:') or
-                        any(keyword in sentence_lower for keyword in theme_config['keywords'])):
-                        
-                        # Clean up the quote
-                        clean_quote = sentence_stripped
-                        if clean_quote.startswith('User:') or clean_quote.startswith('user:'):
-                            clean_quote = clean_quote[5:].strip()  # Remove "User:" prefix
-                        
-                        if clean_quote and len(clean_quote) > 10:  # Must be meaningful
-                            relevant_quote = clean_quote
-                            break
+                user_quotes = []
                 
-                # If we couldn't find a good user quote, try to extract from the whole transcript
-                if relevant_quote == transcript or relevant_quote.startswith('AI:') or relevant_quote.startswith('ai:'):
-                    # Look for user responses in the transcript
-                    user_parts = []
-                    lines = transcript.split('\n')
-                    for line in lines:
-                        line_stripped = line.strip()
-                        if line_stripped.startswith('User:') or line_stripped.startswith('user:'):
-                            user_part = line_stripped[5:].strip() if line_stripped.startswith(('User:', 'user:')) else line_stripped
-                            if any(keyword in user_part.lower() for keyword in theme_config['keywords']):
-                                user_parts.append(user_part)
-                    
-                    if user_parts:
-                        relevant_quote = user_parts[0]  # Take the first relevant user response
-                    else:
-                        # Skip this entry if we can't find a valid user quote
-                        continue
+                # Split transcript into parts and look for user responses
+                if 'User:' in transcript or 'user:' in transcript:
+                    # Handle conversation format with User: labels
+                    parts = transcript.split('User:')
+                    for part in parts[1:]:  # Skip the first part (before first User:)
+                        # Clean the user response
+                        user_response = part.split('AI:')[0].strip()  # Remove any AI follow-up
+                        if user_response:
+                            user_response = user_response.replace('\n', ' ').strip()
+                            if any(keyword in user_response.lower() for keyword in theme_config['keywords']):
+                                if len(user_response) > 10 and len(user_response) < 200:
+                                    user_quotes.append(user_response)
+                else:
+                    # Handle simple text format - look for sentences with theme keywords
+                    sentences = transcript.replace('\n', ' ').split('.')
+                    for sentence in sentences:
+                        sentence = sentence.strip()
+                        if sentence and any(keyword in sentence.lower() for keyword in theme_config['keywords']):
+                            # Skip if it looks like an AI question
+                            ai_question_indicators = [
+                                'hvordan', 'hvad', 'kan du', 'vil du', 'er der', 
+                                'fortæl', 'beskriv', 'mener du', 'synes du'
+                            ]
+                            if not any(indicator in sentence.lower() for indicator in ai_question_indicators):
+                                if len(sentence) > 10 and len(sentence) < 200:
+                                    user_quotes.append(sentence)
                 
-                # Ensure the quote is not too long and doesn't contain AI content
-                if 'AI:' in relevant_quote or 'ai:' in relevant_quote:
-                    continue  # Skip quotes that still contain AI content
-                    
-                if len(relevant_quote) > 200:
-                    relevant_quote = relevant_quote[:200] + '...'
+                # If no good user quotes found, skip this theme mention
+                if not user_quotes:
+                    continue
+                
+                # Use the best user quote
+                relevant_quote = user_quotes[0]
                 
                 themes[theme_name].append({
                     'text': relevant_quote,
