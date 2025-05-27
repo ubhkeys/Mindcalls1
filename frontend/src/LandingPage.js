@@ -180,14 +180,8 @@ const LandingPage = ({ onLogin }) => {
 
             <div className="mt-8 pt-6 border-t border-gray-200">
               <div className="text-center">
-                <p className="text-sm text-gray-500 mb-4">Har du ikke en adgangskode?</p>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Demo Adgangskoder:</h4>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <div><code className="bg-gray-200 px-2 py-1 rounded">DEMO123</code> - Demo adgang</div>
-                    <div><code className="bg-gray-200 px-2 py-1 rounded">SUPER2024</code> - Premium adgang</div>
-                  </div>
-                </div>
+                <p className="text-sm text-gray-500">Har du ikke en adgangskode?</p>
+                <p className="text-sm text-gray-600 mt-2">Kontakt din administrator for at få adgang til dashboardet.</p>
               </div>
             </div>
           </div>
