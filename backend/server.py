@@ -509,7 +509,7 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 8,
             "samlet_karakter": 7
         },
-        "transcript": "Butikken er lille men meget overskuelig og let at navigere i. Udvalget er begrænset - de har ikke så mange varer, men det mest nødvendige findes. Personalet virkede stresset og havde ikke tid til at hjælpe. Til gengæld er priserne virkelig gode og økonomiske.",
+        "transcript": "User: Butikken er lille men meget overskuelig og let at navigere i. User: Udvalget er begrænset - de har ikke så mange varer, men det mest nødvendige findes. User: Personalet virkede stresset og havde ikke tid til at hjælpe. User: Til gengæld er priserne virkelig gode og økonomiske.",
         "themes": ["udvalg", "indretning", "personale", "priser"]
     },
     {
