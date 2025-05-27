@@ -51,9 +51,12 @@ const LandingPage = ({ onLogin }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="text-3xl">📞</div>
+              <img 
+                src="/mindcalls-logo.png" 
+                alt="MindCalls" 
+                className="h-8 w-auto"
+              />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">MindCalls</h1>
                 <p className="text-sm text-gray-600">Kundeindsigter gennem AI-interviews</p>
               </div>
             </div>
