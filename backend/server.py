@@ -316,13 +316,19 @@ def extract_themes_with_clustering(transcripts: List[str]) -> Dict[str, List[Dic
 @app.get("/api/overview")
 async def get_overview():
     """Get dashboard overview statistics"""
-    total_interviews = len(MOCK_INTERVIEWS)
-    active_interviews = 2  # Mock active count
-    avg_duration = sum(interview['duration'] for interview in MOCK_INTERVIEWS) / total_interviews
+    interviews = await fetch_vapi_calls()
     
-    # Calculate trends (mock data)
-    today_interviews = total_interviews // 3
-    yesterday_interviews = total_interviews // 4
+    total_interviews = len(interviews)
+    active_interviews = len([i for i in interviews if i['status'] == 'active'])
+    
+    if total_interviews > 0:
+        avg_duration = sum(interview['duration'] for interview in interviews) / total_interviews
+    else:
+        avg_duration = 0
+    
+    # Calculate trends (mock calculation for now)
+    today_interviews = len([i for i in interviews if datetime.fromisoformat(i['timestamp'].replace('Z', '+00:00')).date() == datetime.now().date()])
+    yesterday_interviews = max(1, total_interviews // 4)  # Prevent division by zero
     trend = ((today_interviews - yesterday_interviews) / yesterday_interviews * 100) if yesterday_interviews > 0 else 0
     
     return {
