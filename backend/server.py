@@ -908,6 +908,56 @@ async def get_interviews(
         "total": len(interviews)
     }
 
+@app.get("/api/interview/{interview_id}")
+async def get_full_interview(interview_id: str, user: dict = Depends(verify_access_token)):
+    """Get full anonymized transcript for a specific interview"""
+    try:
+        # Get all interviews
+        cache_key = "vapi_calls"
+        current_time = time.time()
+        
+        if cache_key in api_cache:
+            cached_data, timestamp = api_cache[cache_key]
+            if current_time - timestamp < 180:  # 3 minute cache
+                interviews = cached_data
+            else:
+                interviews = await fetch_vapi_calls()
+                api_cache[cache_key] = (interviews, current_time)
+        else:
+            interviews = await fetch_vapi_calls()
+            api_cache[cache_key] = (interviews, current_time)
+        
+        # Find the specific interview
+        target_interview = None
+        for interview in interviews:
+            if interview['id'] == interview_id:
+                target_interview = interview
+                break
+        
+        if not target_interview:
+            raise HTTPException(status_code=404, detail="Interview ikke fundet")
+        
+        logger.info(f"Full interview requested by {user['email']} for interview {interview_id}")
+        
+        # Return full interview (already anonymized in process_vapi_calls)
+        return {
+            "id": target_interview['id'],
+            "timestamp": target_interview['timestamp'],
+            "duration": target_interview['duration'],
+            "supermarket": target_interview['supermarket'],
+            "status": target_interview['status'],
+            "ratings": target_interview['ratings'],
+            "transcript": target_interview['transcript'],  # Already anonymized
+            "original_length": len(target_interview['transcript']),
+            "anonymized": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_full_interview: {e}")
+        raise HTTPException(status_code=500, detail="Kunne ikke hente interview")
+
 @app.get("/api/supermarkets")
 async def get_supermarkets():
     """Get list of supermarkets from interviews"""
