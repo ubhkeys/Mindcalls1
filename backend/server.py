@@ -381,10 +381,12 @@ async def get_themes(days: int = Query(7, description="Number of days to look ba
 @app.get("/api/ratings")
 async def get_ratings():
     """Get average ratings for the 5 standard questions"""
+    interviews = await fetch_vapi_calls()
+    
     rating_sums = defaultdict(float)
     rating_counts = defaultdict(int)
     
-    for interview in MOCK_INTERVIEWS:
+    for interview in interviews:
         for question, rating in interview['ratings'].items():
             rating_sums[question] += rating
             rating_counts[question] += 1
@@ -399,12 +401,13 @@ async def get_ratings():
     }
     
     for question, total in rating_sums.items():
-        avg = total / rating_counts[question]
-        averages[question] = {
-            'label': question_labels.get(question, question),
-            'average': round(avg, 1),
-            'color': 'green' if avg >= 8 else 'yellow' if avg >= 6 else 'red'
-        }
+        if rating_counts[question] > 0:
+            avg = total / rating_counts[question]
+            averages[question] = {
+                'label': question_labels.get(question, question),
+                'average': round(avg, 1),
+                'color': 'green' if avg >= 8 else 'yellow' if avg >= 6 else 'red'
+            }
     
     return {"ratings": averages}
 
