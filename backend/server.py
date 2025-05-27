@@ -493,7 +493,7 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 7,
             "samlet_karakter": 8
         },
-        "transcript": "Fantastisk stort udvalg - man kan finde alt her! Dog kan det være svært at finde rundt i butikken, den er meget stor og ikke særlig overskuelig. Kassedamerne var søde og professionelle. Priserne er rimelige for det store udvalg man får.",
+        "transcript": "User: Fantastisk stort udvalg - man kan finde alt her! User: Dog kan det være svært at finde rundt i butikken, den er meget stor og ikke særlig overskuelig. User: Kassedamerne var søde og professionelle. User: Priserne er rimelige for det store udvalg man får.",
         "themes": ["udvalg", "indretning", "personale", "priser"]
     },
     {
