@@ -192,8 +192,37 @@ class VapiDashboardTester:
             self.failures.append("Protected Endpoint: Allowed access without authentication")
             return False
 
-    def test_themes_endpoint(self):
-        """Test the themes endpoint"""
+    def test_overview_endpoint(self):
+        """Test the overview endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test overview endpoint without a valid token")
+            self.failures.append("Overview Endpoint: No token available")
+            return False
+            
+        success, data = self.run_test(
+            "Overview Endpoint",
+            "GET",
+            "overview"
+        )
+        
+        if success:
+            # Validate response structure
+            required_fields = ["total_interviews", "active_interviews", "avg_duration", "trend_percentage", "assistant_name"]
+            missing_fields = [field for field in required_fields if field not in data]
+            
+            if missing_fields:
+                print(f"❌ Missing fields in response: {', '.join(missing_fields)}")
+                self.failures.append(f"Overview Endpoint: Missing fields: {', '.join(missing_fields)}")
+                return False
+                
+            # Check if assistant name matches expected value
+            if data["assistant_name"] != "Supermarket int. dansk":
+                print(f"❌ Assistant name mismatch: Expected 'Supermarket int. dansk', got '{data['assistant_name']}'")
+                self.failures.append(f"Overview Endpoint: Assistant name mismatch")
+                return False
+                
+            return True
+        return False
         success, data = self.run_test(
             "Themes Endpoint",
             "GET",
