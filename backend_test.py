@@ -263,6 +263,11 @@ class VapiDashboardTester:
 
     def test_ratings_endpoint(self):
         """Test the ratings endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test ratings endpoint without a valid token")
+            self.failures.append("Ratings Endpoint: No token available")
+            return False
+            
         success, data = self.run_test(
             "Ratings Endpoint",
             "GET",
@@ -313,6 +318,11 @@ class VapiDashboardTester:
 
     def test_interviews_endpoint(self):
         """Test the interviews endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test interviews endpoint without a valid token")
+            self.failures.append("Interviews Endpoint: No token available")
+            return False
+            
         success, data = self.run_test(
             "Interviews Endpoint",
             "GET",
@@ -347,6 +357,11 @@ class VapiDashboardTester:
 
     def test_supermarkets_endpoint(self):
         """Test the supermarkets endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test supermarkets endpoint without a valid token")
+            self.failures.append("Supermarkets Endpoint: No token available")
+            return False
+            
         success, data = self.run_test(
             "Supermarkets Endpoint",
             "GET",
@@ -371,6 +386,11 @@ class VapiDashboardTester:
 
     def test_chat_endpoint(self):
         """Test the chat endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test chat endpoint without a valid token")
+            self.failures.append("Chat Endpoint: No token available")
+            return False
+            
         test_questions = [
             "Hvor mange interviews blev lavet?",
             "Hvad er den gennemsnitlige karakter?",
