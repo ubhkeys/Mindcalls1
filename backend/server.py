@@ -28,6 +28,50 @@ import hashlib
 # Load environment variables
 load_dotenv()
 
+def anonymize_transcript(transcript: str) -> str:
+    """Anonymize personal names in transcript"""
+    if not transcript:
+        return transcript
+    
+    # Common Danish names to replace with "anonym"
+    danish_names = [
+        # Male names
+        'lars', 'ole', 'niels', 'erik', 'henrik', 'peter', 'søren', 'jens', 'michael', 'thomas',
+        'anders', 'morten', 'martin', 'jan', 'finn', 'bent', 'kurt', 'hans', 'christian', 'jesper',
+        'klaus', 'torben', 'bjørn', 'john', 'rene', 'brian', 'leif', 'poul', 'svend', 'preben',
+        
+        # Female names  
+        'anne', 'kirsten', 'mette', 'lene', 'susanne', 'hanne', 'inge', 'birthe', 'lone', 'pia',
+        'karen', 'bente', 'dorthe', 'tina', 'camilla', 'louise', 'charlotte', 'maria', 'emma', 'sofia',
+        'ida', 'freja', 'alma', 'clara', 'laura', 'maja', 'caroline', 'mathilde', 'isabella', 'anna',
+        
+        # Common surnames
+        'nielsen', 'hansen', 'andersen', 'pedersen', 'larsen', 'sørensen', 'rasmussen', 'jørgensen',
+        'petersen', 'madsen', 'kristensen', 'olsen', 'thomsen', 'christiansen', 'poulsen', 'johansen',
+        'møller', 'mortensen', 'jensen', 'knudsen'
+    ]
+    
+    # Split into words and check each
+    words = transcript.split()
+    anonymized_words = []
+    
+    for word in words:
+        # Clean word for comparison (remove punctuation)
+        clean_word = ''.join(c for c in word.lower() if c.isalpha())
+        
+        # Check if it's a Danish name
+        if clean_word in danish_names and len(clean_word) > 2:
+            # Replace with "anonym" but keep original punctuation
+            punctuation = ''.join(c for c in word if not c.isalpha())
+            if word[0].isupper():
+                anonymized_words.append("Anonym" + punctuation)
+            else:
+                anonymized_words.append("anonym" + punctuation)
+        else:
+            anonymized_words.append(word)
+    
+    return " ".join(anonymized_words)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
