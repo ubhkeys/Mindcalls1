@@ -36,8 +36,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Vapi AI Dashboard API",
-    description="Real-time dashboard for Vapi AI interview analysis",
+    title="MindCalls API",
+    description="Real-time dashboard for AI interview analysis",
     version="1.0.0"
 )
 
