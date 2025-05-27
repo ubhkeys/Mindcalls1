@@ -32,16 +32,82 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(
+    title="Vapi AI Dashboard API",
+    description="Real-time dashboard for Vapi AI interview analysis",
+    version="1.0.0"
+)
+
+# Security middleware
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=["*"]  # Configure this for production
+)
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Configure this for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting cache
+request_cache = {}
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_REQUESTS = 100  # requests per window
+
+def rate_limit(func):
+    @wraps(func)
+    async def wrapper(request: Request, *args, **kwargs):
+        client_ip = request.client.host
+        current_time = time.time()
+        
+        # Clean old entries
+        cutoff_time = current_time - RATE_LIMIT_WINDOW
+        request_cache[client_ip] = [
+            req_time for req_time in request_cache.get(client_ip, [])
+            if req_time > cutoff_time
+        ]
+        
+        # Check rate limit
+        if len(request_cache.get(client_ip, [])) >= RATE_LIMIT_REQUESTS:
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+        
+        # Add current request
+        if client_ip not in request_cache:
+            request_cache[client_ip] = []
+        request_cache[client_ip].append(current_time)
+        
+        return await func(*args, **kwargs)
+    return wrapper
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "message": "Der opstod en fejl. Prøv igen senere.",
+            "timestamp": datetime.now().isoformat()
+        }
+    )
+
+# Validation exception handler
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request: Request, exc: ValidationError):
+    logger.warning(f"Validation error: {str(exc)}")
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "Validation error",
+            "message": "Ugyldig data format",
+            "details": exc.errors()
+        }
+    )
 
 # Environment variables
 VAPI_API_KEY = os.environ.get('VAPI_API_KEY')
