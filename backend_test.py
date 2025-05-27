@@ -222,7 +222,13 @@ class VapiDashboardTester:
                 return False
                 
             return True
-        return False
+    def test_themes_endpoint(self):
+        """Test the themes endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test themes endpoint without a valid token")
+            self.failures.append("Themes Endpoint: No token available")
+            return False
+            
         success, data = self.run_test(
             "Themes Endpoint",
             "GET",
