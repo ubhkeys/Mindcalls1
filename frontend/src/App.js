@@ -477,91 +477,146 @@ const App = () => {
   const [interviews, setInterviews] = useState([]);
   const [selectedAssistant, setSelectedAssistant] = useState('Supermarket int. dansk');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
-  const fetchAllData = async () => {
-    setIsLoading(true);
+  const fetchAllData = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
+    setError(null);
+    
     try {
-      const [overviewRes, themesRes, ratingsRes, interviewsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/overview`),
-        fetch(`${API_BASE_URL}/api/themes`),
-        fetch(`${API_BASE_URL}/api/ratings`),
-        fetch(`${API_BASE_URL}/api/interviews`)
-      ]);
-
       const [overviewData, themesData, ratingsData, interviewsData] = await Promise.all([
-        overviewRes.json(),
-        themesRes.json(),
-        ratingsRes.json(),
-        interviewsRes.json()
+        apiCall('overview'),
+        apiCall('themes'),
+        apiCall('ratings'),
+        apiCall('interviews')
       ]);
 
       setOverview(overviewData);
-      setThemes(themesData.themes);
-      setRatings(ratingsData.ratings);
-      setInterviews(interviewsData.interviews);
+      setThemes(themesData.themes || []);
+      setRatings(ratingsData.ratings || {});
+      setInterviews(interviewsData.interviews || []);
+      setLastUpdated(new Date().toLocaleTimeString('da-DK'));
+      
+      console.log('Dashboard data loaded successfully');
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching dashboard data:', error);
+      setError('Kunne ikke indlæse dashboard data. Tjek din internetforbindelse.');
+    } finally {
+      if (showLoading) setIsLoading(false);
     }
-    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchAllData();
+    
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(() => {
+      fetchAllData(false); // Silent refresh
+    }, 300000);
+    
+    return () => clearInterval(interval);
+  }, [fetchAllData]);
+
+  // Handle retry
+  const handleRetry = () => {
+    fetchAllData(true);
   };
 
+  // Show error state
+  if (error && !overview) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md">
+          <ErrorMessage message={error} onRetry={handleRetry} />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-3xl font-bold text-gray-900">
-                🏪 Vapi AI Dashboard
-              </h1>
-              <span className="text-sm text-gray-500">
-                Kundeindsigter fra supermarkeder
-              </span>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <div className="flex items-center space-x-4">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  🏪 Vapi AI Dashboard
+                </h1>
+                <span className="text-sm text-gray-500">
+                  Kundeindsigter fra supermarkeder
+                </span>
+                {lastUpdated && (
+                  <span className="text-xs text-gray-400">
+                    Sidst opdateret: {lastUpdated}
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <select 
+                  value={selectedAssistant}
+                  onChange={(e) => setSelectedAssistant(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                >
+                  <option value="Supermarket int. dansk">Supermarket int. dansk</option>
+                </select>
+                <button 
+                  onClick={() => fetchAllData(true)}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  <span>{isLoading ? '⟳' : '🔄'}</span>
+                  <span>{isLoading ? 'Opdaterer...' : 'Opdater'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {error && (
+            <div className="mb-6">
+              <ErrorMessage message={error} onRetry={handleRetry} />
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Row 1: Overview and Ratings */}
+            <OverviewWidget overview={overview} isLoading={isLoading} />
+            <RatingsWidget ratings={ratings} isLoading={isLoading} />
+            
+            {/* Row 2: Theme Collector (Full Width) */}
+            <div className="lg:col-span-2">
+              <ThemeCollectorWidget themes={themes} isLoading={isLoading} />
             </div>
             
-            <div className="flex items-center space-x-4">
-              <select 
-                value={selectedAssistant}
-                onChange={(e) => setSelectedAssistant(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Supermarket int. dansk">Supermarket int. dansk</option>
-              </select>
-              <button 
-                onClick={fetchAllData}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center space-x-2"
-              >
-                <span>🔄</span>
-                <span>Opdater</span>
-              </button>
+            {/* Row 3: Response Log and Chat */}
+            <ResponseLogWidget interviews={interviews} isLoading={isLoading} />
+            <ChatWidget />
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="bg-white border-t mt-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="text-center text-sm text-gray-500">
+              Vapi AI Dashboard v1.0 - Production Ready ✅
+              {overview && (
+                <span className="ml-4">
+                  Aktive interviews: {overview.total_interviews} | 
+                  Assistent: {overview.assistant_name}
+                </span>
+              )}
             </div>
           </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Row 1: Overview and Ratings */}
-          <OverviewWidget overview={overview} isLoading={isLoading} />
-          <RatingsWidget ratings={ratings} isLoading={isLoading} />
-          
-          {/* Row 2: Theme Collector (Full Width) */}
-          <div className="lg:col-span-2">
-            <ThemeCollectorWidget themes={themes} isLoading={isLoading} />
-          </div>
-          
-          {/* Row 3: Response Log and Chat */}
-          <ResponseLogWidget interviews={interviews} isLoading={isLoading} />
-          <ChatWidget />
-        </div>
-      </main>
-    </div>
+        </footer>
+      </div>
+    </ErrorBoundary>
   );
 };
 
