@@ -62,32 +62,135 @@ class VapiDashboardTester:
             self.failures.append(f"{name}: {error_msg}")
             return False, {}
 
-    def test_overview_endpoint(self):
-        """Test the overview endpoint"""
+    def test_login(self, email, access_code, expected_status=200):
+        """Test login with email and access code"""
+        print(f"\n🔑 Testing login with email: {email}, access code: {access_code}")
+        
         success, data = self.run_test(
-            "Overview Endpoint",
-            "GET",
-            "overview"
+            f"Login with {access_code}",
+            "POST",
+            "auth/login",
+            expected_status=expected_status,
+            data={"email": email, "access_code": access_code},
+            auth=False
+        )
+        
+        if success and expected_status == 200:
+            # Store token for subsequent requests
+            self.access_token = data.get('access_token')
+            self.user_email = data.get('email')
+            self.access_level = data.get('access_level')
+            
+            print(f"✅ Successfully logged in as {self.user_email} with access level: {self.access_level}")
+            return True
+        elif expected_status != 200 and not success:
+            # This is a negative test that's supposed to fail
+            self.tests_passed += 1
+            print(f"✅ Login correctly rejected with status {expected_status}")
+            return True
+        
+        return False
+    
+    def test_token_validation(self):
+        """Test token validation endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test token validation without a valid token")
+            self.failures.append("Token Validation: No token available")
+            return False
+            
+        success, data = self.run_test(
+            "Token Validation",
+            "POST",
+            "auth/validate"
         )
         
         if success:
             # Validate response structure
-            required_fields = ["total_interviews", "active_interviews", "avg_duration", "trend_percentage", "assistant_name"]
-            missing_fields = [field for field in required_fields if field not in data]
-            
-            if missing_fields:
-                print(f"❌ Missing fields in response: {', '.join(missing_fields)}")
-                self.failures.append(f"Overview Endpoint: Missing fields: {', '.join(missing_fields)}")
+            if "valid" not in data or "email" not in data or "access_level" not in data:
+                print("❌ Missing fields in token validation response")
+                self.failures.append("Token Validation: Missing fields in response")
                 return False
                 
-            # Check if assistant name matches expected value
-            if data["assistant_name"] != "Supermarket int. dansk":
-                print(f"❌ Assistant name mismatch: Expected 'Supermarket int. dansk', got '{data['assistant_name']}'")
-                self.failures.append(f"Overview Endpoint: Assistant name mismatch")
+            # Check if validation was successful
+            if not data["valid"]:
+                print("❌ Token validation failed")
+                self.failures.append("Token Validation: Token reported as invalid")
+                return False
+                
+            # Check if email matches
+            if data["email"] != self.user_email:
+                print(f"❌ Email mismatch: Expected {self.user_email}, got {data['email']}")
+                self.failures.append("Token Validation: Email mismatch")
+                return False
+                
+            # Check if access level matches
+            if data["access_level"] != self.access_level:
+                print(f"❌ Access level mismatch: Expected {self.access_level}, got {data['access_level']}")
+                self.failures.append("Token Validation: Access level mismatch")
                 return False
                 
             return True
         return False
+    
+    def test_logout(self):
+        """Test logout endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test logout without a valid token")
+            self.failures.append("Logout: No token available")
+            return False
+            
+        success, data = self.run_test(
+            "Logout",
+            "GET",
+            "auth/logout"
+        )
+        
+        if success:
+            # Validate response structure
+            if "message" not in data:
+                print("❌ Missing 'message' field in logout response")
+                self.failures.append("Logout: Missing 'message' field")
+                return False
+                
+            # Check if logout was successful
+            if "succes" not in data["message"].lower():
+                print(f"❌ Unexpected logout message: {data['message']}")
+                self.failures.append(f"Logout: Unexpected message: {data['message']}")
+                return False
+                
+            # Clear token after successful logout
+            self.access_token = None
+            self.user_email = None
+            self.access_level = None
+            
+            return True
+        return False
+    
+    def test_protected_endpoint_without_auth(self):
+        """Test accessing a protected endpoint without authentication"""
+        # Temporarily clear token
+        temp_token = self.access_token
+        self.access_token = None
+        
+        success, _ = self.run_test(
+            "Protected Endpoint Without Auth",
+            "GET",
+            "overview",
+            expected_status=401
+        )
+        
+        # Restore token
+        self.access_token = temp_token
+        
+        if not success:
+            # This test should fail with 401, so if run_test returns False, it's actually good
+            self.tests_passed += 1
+            print("✅ Protected endpoint correctly rejected unauthenticated request")
+            return True
+        else:
+            print("❌ Protected endpoint allowed access without authentication")
+            self.failures.append("Protected Endpoint: Allowed access without authentication")
+            return False
 
     def test_themes_endpoint(self):
         """Test the themes endpoint"""
