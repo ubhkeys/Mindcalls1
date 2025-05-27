@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
+import LandingPage from './LandingPage';
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -41,20 +42,42 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Auth utility functions
+const getStoredToken = () => localStorage.getItem('access_token');
+const getStoredUser = () => ({
+  email: localStorage.getItem('user_email'),
+  accessLevel: localStorage.getItem('access_level')
+});
+
+const clearStoredAuth = () => {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('user_email');
+  localStorage.removeItem('access_level');
+};
+
 // API utility functions
 const apiCall = async (endpoint, options = {}) => {
   try {
+    const token = getStoredToken();
     console.log(`Making API call to: ${API_BASE_URL}/api/${endpoint}`);
     
     const response = await fetch(`${API_BASE_URL}/api/${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options.headers,
       },
     });
 
     console.log(`API response for ${endpoint}:`, response.status, response.statusText);
+
+    if (response.status === 401) {
+      // Token expired or invalid
+      clearStoredAuth();
+      window.location.reload();
+      return;
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -135,6 +158,8 @@ const ThemeCollectorWidget = ({ themes, isLoading }) => {
     );
   }
 
+  const themesArray = Array.isArray(themes) ? themes : [];
+
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <div className="flex justify-between items-center mb-6">
@@ -153,7 +178,7 @@ const ThemeCollectorWidget = ({ themes, isLoading }) => {
       </div>
 
       <div className="space-y-4">
-        {themes?.map((theme, index) => (
+        {themesArray.length > 0 ? themesArray.map((theme, index) => (
           <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center space-x-3">
@@ -183,19 +208,19 @@ const ThemeCollectorWidget = ({ themes, isLoading }) => {
               <div className="flex h-6 rounded-lg overflow-hidden bg-gray-100">
                 <div 
                   className="bg-green-500 flex items-center justify-center text-white text-xs font-bold"
-                  style={{ width: `${(theme.sentiment_breakdown.positive / theme.total_mentions) * 100}%` }}
+                  style={{ width: `${theme.total_mentions > 0 ? (theme.sentiment_breakdown.positive / theme.total_mentions) * 100 : 0}%` }}
                 >
                   {theme.sentiment_breakdown.positive > 0 && theme.sentiment_breakdown.positive}
                 </div>
                 <div 
                   className="bg-yellow-500 flex items-center justify-center text-white text-xs font-bold"
-                  style={{ width: `${(theme.sentiment_breakdown.neutral / theme.total_mentions) * 100}%` }}
+                  style={{ width: `${theme.total_mentions > 0 ? (theme.sentiment_breakdown.neutral / theme.total_mentions) * 100 : 0}%` }}
                 >
                   {theme.sentiment_breakdown.neutral > 0 && theme.sentiment_breakdown.neutral}
                 </div>
                 <div 
                   className="bg-red-500 flex items-center justify-center text-white text-xs font-bold"
-                  style={{ width: `${(theme.sentiment_breakdown.negative / theme.total_mentions) * 100}%` }}
+                  style={{ width: `${theme.total_mentions > 0 ? (theme.sentiment_breakdown.negative / theme.total_mentions) * 100 : 0}%` }}
                 >
                   {theme.sentiment_breakdown.negative > 0 && theme.sentiment_breakdown.negative}
                 </div>
@@ -232,7 +257,11 @@ const ThemeCollectorWidget = ({ themes, isLoading }) => {
               </div>
             )}
           </div>
-        ))}
+        )) : (
+          <div className="text-center text-gray-500 py-8">
+            Ingen temaer fundet endnu
+          </div>
+        )}
       </div>
     </div>
   );
@@ -280,6 +309,13 @@ const OverviewWidget = ({ overview, isLoading }) => {
           <div className="text-sm text-gray-600">Trend denne uge</div>
         </div>
       </div>
+      {overview?.user_access_level && (
+        <div className="mt-4 pt-4 border-t text-center">
+          <span className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+            {overview.user_access_level}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -425,14 +461,12 @@ const ChatWidget = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+      const response = await apiCall('chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: input })
       });
-      const data = await response.json();
       
-      setMessages(prev => [...prev, { type: 'bot', content: data.answer }]);
+      setMessages(prev => [...prev, { type: 'bot', content: response.answer }]);
     } catch (error) {
       setMessages(prev => [...prev, { type: 'bot', content: 'Beklager, jeg kunne ikke behandle dit spørgsmål.' }]);
     }
@@ -489,6 +523,8 @@ const ChatWidget = () => {
 
 // Main App Component
 const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
   const [overview, setOverview] = useState(null);
   const [themes, setThemes] = useState([]);
   const [ratings, setRatings] = useState({});
@@ -497,6 +533,20 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Check authentication on app load
+  useEffect(() => {
+    const token = getStoredToken();
+    const storedUser = getStoredUser();
+    
+    if (token && storedUser.email) {
+      setIsAuthenticated(true);
+      setUser(storedUser);
+      setIsLoading(false);
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
 
   const fetchAllData = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -529,21 +579,56 @@ const App = () => {
     }
   }, []);
 
+  // Fetch data when authenticated
   useEffect(() => {
-    fetchAllData();
-    
-    // Auto-refresh every 5 minutes
-    const interval = setInterval(() => {
-      fetchAllData(false); // Silent refresh
-    }, 300000);
-    
-    return () => clearInterval(interval);
-  }, [fetchAllData]);
+    if (isAuthenticated) {
+      fetchAllData();
+      
+      // Auto-refresh every 5 minutes
+      const interval = setInterval(() => {
+        fetchAllData(false); // Silent refresh
+      }, 300000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, fetchAllData]);
+
+  const handleLogin = (loginData) => {
+    setIsAuthenticated(true);
+    setUser({
+      email: loginData.email,
+      accessLevel: loginData.access_level
+    });
+  };
+
+  const handleLogout = () => {
+    clearStoredAuth();
+    setIsAuthenticated(false);
+    setUser(null);
+    setOverview(null);
+    setThemes([]);
+    setRatings({});
+    setInterviews([]);
+  };
 
   // Handle retry
   const handleRetry = () => {
     fetchAllData(true);
   };
+
+  // Show loading on initial load
+  if (isLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <LoadingSpinner message="Indlæser..." />
+      </div>
+    );
+  }
+
+  // Show landing page if not authenticated
+  if (!isAuthenticated) {
+    return <LandingPage onLogin={handleLogin} />;
+  }
 
   // Show error state
   if (error && !overview) {
@@ -578,6 +663,9 @@ const App = () => {
               </div>
               
               <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">
+                  {user?.email} ({user?.accessLevel})
+                </span>
                 <select 
                   value={selectedAssistant}
                   onChange={(e) => setSelectedAssistant(e.target.value)}
@@ -593,6 +681,12 @@ const App = () => {
                 >
                   <span>{isLoading ? '⟳' : '🔄'}</span>
                   <span>{isLoading ? 'Opdaterer...' : 'Opdater'}</span>
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                >
+                  Log ud
                 </button>
               </div>
             </div>
@@ -627,7 +721,7 @@ const App = () => {
         <footer className="bg-white border-t mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="text-center text-sm text-gray-500">
-              Vapi AI Dashboard v1.0 - Production Ready ✅
+              Vapi AI Dashboard v1.0 - Protected Access ✅
               {overview && (
                 <span className="ml-4">
                   Aktive interviews: {overview.total_interviews} | 
