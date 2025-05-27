@@ -164,35 +164,63 @@ async def health_check():
 
 # Vapi API functions
 async def fetch_vapi_calls():
-    """Fetch calls from Vapi API"""
+    """Fetch calls from Vapi API with enhanced error handling"""
     if not VAPI_API_KEY:
-        print("Warning: No Vapi API key provided, using mock data")
+        logger.warning("No Vapi API key provided, using mock data")
         return MOCK_INTERVIEWS
     
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             headers = {
                 "Authorization": f"Bearer {VAPI_API_KEY}",
                 "Content-Type": "application/json"
             }
             
-            # Fetch calls from Vapi
+            params = {}
+            if VAPI_ASSISTANT_ID:
+                params["assistantId"] = VAPI_ASSISTANT_ID
+            
+            logger.info(f"Fetching calls from Vapi API with assistant ID: {VAPI_ASSISTANT_ID}")
+            
             response = await client.get(
                 "https://api.vapi.ai/call", 
                 headers=headers,
-                params={"assistantId": VAPI_ASSISTANT_ID} if VAPI_ASSISTANT_ID else {}
+                params=params
             )
             
             if response.status_code == 200:
                 calls_data = response.json()
-                print(f"Successfully fetched {len(calls_data)} calls from Vapi")
-                return process_vapi_calls(calls_data)
+                logger.info(f"Successfully fetched {len(calls_data)} calls from Vapi")
+                
+                if not calls_data:
+                    logger.info("No calls found, using mock data for demonstration")
+                    return MOCK_INTERVIEWS
+                
+                processed_calls = process_vapi_calls(calls_data)
+                logger.info(f"Processed {len(processed_calls)} calls successfully")
+                return processed_calls
+                
+            elif response.status_code == 401:
+                logger.error("Vapi API authentication failed - invalid API key")
+                return MOCK_INTERVIEWS
+            elif response.status_code == 403:
+                logger.error("Vapi API access forbidden - check permissions")
+                return MOCK_INTERVIEWS
+            elif response.status_code == 429:
+                logger.warning("Vapi API rate limit exceeded, using cached data")
+                return MOCK_INTERVIEWS
             else:
-                print(f"Vapi API error: {response.status_code} - {response.text}")
+                logger.error(f"Vapi API error: {response.status_code} - {response.text}")
                 return MOCK_INTERVIEWS
                 
+    except httpx.TimeoutException:
+        logger.error("Vapi API timeout, using mock data")
+        return MOCK_INTERVIEWS
+    except httpx.RequestError as e:
+        logger.error(f"Vapi API request error: {e}")
+        return MOCK_INTERVIEWS
     except Exception as e:
-        print(f"Error fetching Vapi calls: {e}")
+        logger.error(f"Unexpected error fetching Vapi calls: {e}")
         return MOCK_INTERVIEWS
 
 def process_vapi_calls(vapi_calls):
