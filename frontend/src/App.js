@@ -258,7 +258,7 @@ const OverviewWidget = ({ overview, isLoading }) => {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-        📊 Oversigt - {overview?.assistant_name}
+        📊 Oversigt - {overview?.assistant_name || 'Vapi Assistant'}
       </h2>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="text-center">
@@ -274,8 +274,8 @@ const OverviewWidget = ({ overview, isLoading }) => {
           <div className="text-sm text-gray-600">Gennemsnitlig varighed</div>
         </div>
         <div className="text-center">
-          <div className={`text-3xl font-bold ${overview?.trend_percentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {overview?.trend_percentage >= 0 ? '+' : ''}{overview?.trend_percentage || 0}%
+          <div className={`text-3xl font-bold ${(overview?.trend_percentage || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {(overview?.trend_percentage || 0) >= 0 ? '+' : ''}{overview?.trend_percentage || 0}%
           </div>
           <div className="text-sm text-gray-600">Trend denne uge</div>
         </div>
