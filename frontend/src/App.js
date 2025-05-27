@@ -970,9 +970,13 @@ const App = () => {
               <ThemeCollectorWidget themes={themes} isLoading={isLoading} />
             </div>
             
-            {/* Row 3: Response Log and Chat */}
+            {/* Row 3: Response Log and Interview Reader */}
             <ResponseLogWidget interviews={interviews} isLoading={isLoading} />
-            <ChatWidget />
+            
+            {/* Row 4: Interview Reader (Full Width) */}
+            <div className="lg:col-span-2">
+              <InterviewReaderWidget interviews={interviews} isLoading={isLoading} />
+            </div>
           </div>
         </main>
 
