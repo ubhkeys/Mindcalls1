@@ -462,7 +462,7 @@ def extract_simple_themes(transcript):
     
     return found_themes
 
-# Mock data for development
+# Mock data for development - Enhanced with theme-relevant content
 MOCK_INTERVIEWS = [
     {
         "id": str(uuid.uuid4()),
@@ -477,8 +477,8 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 6,
             "samlet_karakter": 7
         },
-        "transcript": "Jeg synes butikken har et rigtig godt udvalg af varer, især de friske grøntsager. Personalet var meget venligt og hjælpsomt. Priserne er lidt høje, men kvaliteten er god. Køerne var ikke så lange i dag.",
-        "themes": ["udvalg", "personale", "priser", "kø-oplevelse"]
+        "transcript": "Jeg synes butikken har et rigtig godt udvalg af varer, især de friske grøntsager er fantastiske. Personalet var meget venligt og hjælpsomt når jeg spurgte om hjælp. Priserne er lidt høje sammenlignet med andre steder, men kvaliteten er god. Køerne var ikke så lange i dag, så det gik hurtigt.",
+        "themes": ["udvalg", "personale", "priser", "kø"]
     },
     {
         "id": str(uuid.uuid4()),
@@ -493,7 +493,7 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 7,
             "samlet_karakter": 8
         },
-        "transcript": "Fantastisk stort udvalg! Man kan finde alt her. Dog kan det være svært at finde rundt - butikken er meget stor og ikke særlig overskuelig. Kassedamerne var søde. Priserne er rimelige.",
+        "transcript": "Fantastisk stort udvalg - man kan finde alt her! Dog kan det være svært at finde rundt i butikken, den er meget stor og ikke særlig overskuelig. Kassedamerne var søde og professionelle. Priserne er rimelige for det store udvalg man får.",
         "themes": ["udvalg", "indretning", "personale", "priser"]
     },
     {
@@ -509,7 +509,7 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 8,
             "samlet_karakter": 7
         },
-        "transcript": "Butikken er lille men overskuelig. Udvalget er begrænset, men de har det mest nødvendige. Personalet virkede stresset og havde ikke tid til at hjælpe. Til gengæld er priserne virkelig gode.",
+        "transcript": "Butikken er lille men meget overskuelig og let at navigere i. Udvalget er begrænset - de har ikke så mange varer, men det mest nødvendige findes. Personalet virkede stresset og havde ikke tid til at hjælpe. Til gengæld er priserne virkelig gode og økonomiske.",
         "themes": ["udvalg", "indretning", "personale", "priser"]
     },
     {
@@ -525,8 +525,24 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 5,
             "samlet_karakter": 8
         },
-        "transcript": "Irma har altid en dejlig atmosfære og personalet er super venligt og professionelt. Butikken er flot indrettet og let at navigere i. De har gode økologiske varer. Dog er priserne virkelig høje - det er en luksusbetegnelse at handle her.",
-        "themes": ["atmosfære", "personale", "indretning", "økologi", "priser"]
+        "transcript": "Irma har altid en dejlig atmosfære og stemning. Personalet er super venligt og professionelt - de hjælper altid gerne. Butikken er flot indrettet og let at navigere i. De har gode økologiske varer og friske grøntsager. Men priserne er virkelig høje - det er en luksusbetegnelse at handle her.",
+        "themes": ["atmosfære", "personale", "indretning", "friskhed", "priser"]
+    },
+    {
+        "id": str(uuid.uuid4()),
+        "timestamp": "2024-12-19T18:30:00Z",
+        "duration": 190,
+        "supermarket": "Kvickly Valby",
+        "status": "completed",
+        "ratings": {
+            "udvalg_af_varer": 7,
+            "overskuelighed_indretning": 6,
+            "stemning_personal": 7,
+            "prisniveau_kvalitet": 6,
+            "samlet_karakter": 6
+        },
+        "transcript": "Lange køer ved kasserne - man skal vente alt for længe. Udvalget er okay, man kan finde det meste. Butikken er lidt rodet og ikke så overskuelig som den kunne være. Personalet er okay, men ikke særlig imødekommende. Priserne er middel.",
+        "themes": ["kø", "udvalg", "indretning", "personale", "priser"]
     }
 ]
 
