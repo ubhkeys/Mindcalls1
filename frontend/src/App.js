@@ -650,10 +650,10 @@ const App = () => {
             <div className="flex justify-between items-center py-4">
               <div className="flex items-center space-x-4">
                 <h1 className="text-3xl font-bold text-gray-900">
-                  🏪 Vapi AI Dashboard
+                  📞 MindCalls
                 </h1>
                 <span className="text-sm text-gray-500">
-                  Kundeindsigter fra supermarkeder
+                  Kundeindsigter gennem AI-interviews
                 </span>
                 {lastUpdated && (
                   <span className="text-xs text-gray-400">
