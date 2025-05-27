@@ -10,11 +10,18 @@ class VapiDashboardTester:
         self.tests_run = 0
         self.tests_passed = 0
         self.failures = []
+        self.access_token = None
+        self.user_email = None
+        self.access_level = None
 
-    def run_test(self, name, method, endpoint, expected_status=200, data=None, params=None):
+    def run_test(self, name, method, endpoint, expected_status=200, data=None, params=None, auth=True):
         """Run a single API test"""
         url = f"{self.base_url}/api/{endpoint}"
         headers = {'Content-Type': 'application/json'}
+        
+        # Add authorization header if token exists and auth is required
+        if auth and self.access_token:
+            headers['Authorization'] = f'Bearer {self.access_token}'
         
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
@@ -32,11 +39,20 @@ class VapiDashboardTester:
             if success:
                 self.tests_passed += 1
                 print(f"✅ Passed - Status: {response.status_code}")
-                print(f"Response: {json.dumps(response.json(), indent=2)[:500]}...")
-                return True, response.json()
+                try:
+                    response_json = response.json()
+                    print(f"Response: {json.dumps(response_json, indent=2)[:500]}...")
+                    return True, response_json
+                except:
+                    print(f"Response: {response.text[:500]}...")
+                    return True, {}
             else:
                 error_msg = f"❌ Failed - Expected {expected_status}, got {response.status_code}"
                 print(error_msg)
+                try:
+                    print(f"Error response: {response.text[:500]}")
+                except:
+                    pass
                 self.failures.append(f"{name}: {error_msg}")
                 return False, {}
 
