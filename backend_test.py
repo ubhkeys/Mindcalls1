@@ -243,7 +243,7 @@ class MindCallsAPITester:
             "Single Interview",
             "GET",
             f"interview/{interview_id}",
-            auth=False  # Check if this endpoint requires auth
+            auth=True  # This endpoint requires auth
         )
         
         if success:
