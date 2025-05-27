@@ -1,54 +1,479 @@
-import { useEffect } from "react";
-import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import './App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
+// Theme Collector Component - The centerpiece widget
+const ThemeCollectorWidget = ({ themes, isLoading }) => {
+  const [expandedTheme, setExpandedTheme] = useState(null);
+  const [selectedTimeRange, setSelectedTimeRange] = useState('7');
+
+  const getSentimentColor = (sentiment) => {
+    switch (sentiment) {
+      case 'positive': return 'text-green-600 bg-green-100';
+      case 'negative': return 'text-red-600 bg-red-100';
+      default: return 'text-yellow-600 bg-yellow-100';
     }
   };
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+  const getSentimentIcon = (sentiment) => {
+    switch (sentiment) {
+      case 'positive': return '😊';
+      case 'negative': return '😞';
+      default: return '😐';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-20 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+          🎯 Theme Collector med Sentiment Analyse
+        </h2>
+        <select 
+          value={selectedTimeRange}
+          onChange={(e) => setSelectedTimeRange(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+          <option value="1">I dag</option>
+          <option value="7">Sidste 7 dage</option>
+          <option value="30">Sidste 30 dage</option>
+        </select>
+      </div>
+
+      <div className="space-y-4">
+        {themes?.map((theme, index) => (
+          <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-3">
+              <div className="flex items-center space-x-3">
+                <h3 className="text-lg font-semibold text-gray-800">{theme.name}</h3>
+                {theme.is_new && (
+                  <span className="px-2 py-1 bg-blue-500 text-white text-xs rounded-full font-bold">
+                    NY
+                  </span>
+                )}
+                <span className="text-sm text-gray-500">
+                  {theme.total_mentions} nævninger
+                </span>
+              </div>
+              <button 
+                onClick={() => setExpandedTheme(expandedTheme === index ? null : index)}
+                className="text-blue-500 hover:text-blue-700 font-medium"
+              >
+                {expandedTheme === index ? 'Skjul detaljer' : 'Vis detaljer'}
+              </button>
+            </div>
+
+            {/* Sentiment Bar Chart */}
+            <div className="mb-4">
+              <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
+                <span>Sentiment fordeling:</span>
+              </div>
+              <div className="flex h-6 rounded-lg overflow-hidden bg-gray-100">
+                <div 
+                  className="bg-green-500 flex items-center justify-center text-white text-xs font-bold"
+                  style={{ width: `${(theme.sentiment_breakdown.positive / theme.total_mentions) * 100}%` }}
+                >
+                  {theme.sentiment_breakdown.positive > 0 && theme.sentiment_breakdown.positive}
+                </div>
+                <div 
+                  className="bg-yellow-500 flex items-center justify-center text-white text-xs font-bold"
+                  style={{ width: `${(theme.sentiment_breakdown.neutral / theme.total_mentions) * 100}%` }}
+                >
+                  {theme.sentiment_breakdown.neutral > 0 && theme.sentiment_breakdown.neutral}
+                </div>
+                <div 
+                  className="bg-red-500 flex items-center justify-center text-white text-xs font-bold"
+                  style={{ width: `${(theme.sentiment_breakdown.negative / theme.total_mentions) * 100}%` }}
+                >
+                  {theme.sentiment_breakdown.negative > 0 && theme.sentiment_breakdown.negative}
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>😊 Positiv ({theme.sentiment_breakdown.positive})</span>
+                <span>😐 Neutral ({theme.sentiment_breakdown.neutral})</span>
+                <span>😞 Negativ ({theme.sentiment_breakdown.negative})</span>
+              </div>
+            </div>
+
+            {/* Expanded Details */}
+            {expandedTheme === index && (
+              <div className="mt-4 border-t pt-4">
+                {['positive', 'neutral', 'negative'].map(sentiment => (
+                  theme.sample_quotes[sentiment]?.length > 0 && (
+                    <div key={sentiment} className="mb-4">
+                      <h4 className={`text-sm font-semibold mb-2 flex items-center ${getSentimentColor(sentiment)} px-2 py-1 rounded`}>
+                        {getSentimentIcon(sentiment)} {sentiment === 'positive' ? 'Positive' : sentiment === 'neutral' ? 'Neutrale' : 'Negative'} citater
+                      </h4>
+                      <div className="space-y-2">
+                        {theme.sample_quotes[sentiment].slice(0, 3).map((quote, idx) => (
+                          <div key={idx} className="bg-gray-50 p-3 rounded border-l-4 border-gray-300">
+                            <p className="text-sm text-gray-700 italic">"{quote.text}"</p>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {new Date(quote.timestamp).toLocaleDateString('da-DK')} - {quote.supermarket}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
-function App() {
+// Overview Statistics Widget
+const OverviewWidget = ({ overview, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+          <div className="grid grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+        📊 Oversigt - {overview?.assistant_name}
+      </h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="text-center">
+          <div className="text-3xl font-bold text-blue-600">{overview?.total_interviews || 0}</div>
+          <div className="text-sm text-gray-600">Gennemførte interviews</div>
+        </div>
+        <div className="text-center">
+          <div className="text-3xl font-bold text-green-600">{overview?.active_interviews || 0}</div>
+          <div className="text-sm text-gray-600">Aktive interviews</div>
+        </div>
+        <div className="text-center">
+          <div className="text-3xl font-bold text-purple-600">{overview?.avg_duration || 0}s</div>
+          <div className="text-sm text-gray-600">Gennemsnitlig varighed</div>
+        </div>
+        <div className="text-center">
+          <div className={`text-3xl font-bold ${overview?.trend_percentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {overview?.trend_percentage >= 0 ? '+' : ''}{overview?.trend_percentage || 0}%
+          </div>
+          <div className="text-sm text-gray-600">Trend denne uge</div>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+// Ratings Bar Chart Widget
+const RatingsWidget = ({ ratings, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="h-8 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">📈 Standardkarakterer</h2>
+      <div className="space-y-4">
+        {Object.entries(ratings || {}).map(([key, data]) => (
+          <div key={key} className="flex items-center space-x-4">
+            <div className="w-1/3 text-sm font-medium text-gray-700">
+              {data.label}
+            </div>
+            <div className="flex-1 bg-gray-200 rounded-full h-8 relative">
+              <div 
+                className={`h-8 rounded-full flex items-center justify-end pr-3 text-white font-bold text-sm ${
+                  data.color === 'green' ? 'bg-green-500' : 
+                  data.color === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${(data.average / 10) * 100}%` }}
+              >
+                {data.average}/10
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Response Log Widget
+const ResponseLogWidget = ({ interviews, isLoading }) => {
+  const [filter, setFilter] = useState('');
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredInterviews = interviews?.filter(interview => 
+    interview.supermarket.toLowerCase().includes(filter.toLowerCase()) ||
+    interview.transcript.toLowerCase().includes(filter.toLowerCase())
+  ) || [];
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">📝 Besvarelseslog</h2>
+        <input
+          type="text"
+          placeholder="Filtrer interviews..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div className="max-h-96 overflow-y-auto space-y-4">
+        {filteredInterviews.map((interview) => (
+          <div key={interview.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex items-center space-x-3">
+                <span className="font-medium text-gray-800">{interview.supermarket}</span>
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  interview.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {interview.status === 'completed' ? 'Gennemført' : 'Aktiv'}
+                </span>
+              </div>
+              <div className="text-sm text-gray-500">
+                {new Date(interview.timestamp).toLocaleString('da-DK')}
+              </div>
+            </div>
+            <p className="text-sm text-gray-700 line-clamp-2">
+              {interview.transcript.substring(0, 150)}...
+            </p>
+            <div className="flex justify-between items-center mt-3">
+              <div className="text-sm text-gray-500">
+                Varighed: {Math.floor(interview.duration / 60)}:{(interview.duration % 60).toString().padStart(2, '0')}
+              </div>
+              <div className="text-sm font-medium text-blue-600">
+                Samlet: {interview.ratings.samlet_karakter}/10
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Chat Widget
+const ChatWidget = () => {
+  const [messages, setMessages] = useState([
+    { type: 'bot', content: 'Hej! Spørg mig om interview data, temaer, karakterer eller sentiment.' }
+  ]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+
+    const userMessage = { type: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: input })
+      });
+      const data = await response.json();
+      
+      setMessages(prev => [...prev, { type: 'bot', content: data.answer }]);
+    } catch (error) {
+      setMessages(prev => [...prev, { type: 'bot', content: 'Beklager, jeg kunne ikke behandle dit spørgsmål.' }]);
+    }
+
+    setInput('');
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">💬 Chat med Dashboard</h2>
+      
+      <div className="h-64 overflow-y-auto border border-gray-200 rounded-lg p-4 mb-4 space-y-3">
+        {messages.map((message, index) => (
+          <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-xs px-4 py-2 rounded-lg ${
+              message.type === 'user' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-800'
+            }`}>
+              {message.content}
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg">
+              Tænker...
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex space-x-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+          placeholder="Stil et spørgsmål..."
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          onClick={handleSendMessage}
+          disabled={isLoading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Main App Component
+const App = () => {
+  const [overview, setOverview] = useState(null);
+  const [themes, setThemes] = useState([]);
+  const [ratings, setRatings] = useState({});
+  const [interviews, setInterviews] = useState([]);
+  const [selectedAssistant, setSelectedAssistant] = useState('Supermarket int. dansk');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    setIsLoading(true);
+    try {
+      const [overviewRes, themesRes, ratingsRes, interviewsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/overview`),
+        fetch(`${API_BASE_URL}/api/themes`),
+        fetch(`${API_BASE_URL}/api/ratings`),
+        fetch(`${API_BASE_URL}/api/interviews`)
+      ]);
+
+      const [overviewData, themesData, ratingsData, interviewsData] = await Promise.all([
+        overviewRes.json(),
+        themesRes.json(),
+        ratingsRes.json(),
+        interviewsRes.json()
+      ]);
+
+      setOverview(overviewData);
+      setThemes(themesData.themes);
+      setRatings(ratingsData.ratings);
+      setInterviews(interviewsData.interviews);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-3xl font-bold text-gray-900">
+                🏪 Vapi AI Dashboard
+              </h1>
+              <span className="text-sm text-gray-500">
+                Kundeindsigter fra supermarkeder
+              </span>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <select 
+                value={selectedAssistant}
+                onChange={(e) => setSelectedAssistant(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Supermarket int. dansk">Supermarket int. dansk</option>
+              </select>
+              <button 
+                onClick={fetchAllData}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center space-x-2"
+              >
+                <span>🔄</span>
+                <span>Opdater</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Row 1: Overview and Ratings */}
+          <OverviewWidget overview={overview} isLoading={isLoading} />
+          <RatingsWidget ratings={ratings} isLoading={isLoading} />
+          
+          {/* Row 2: Theme Collector (Full Width) */}
+          <div className="lg:col-span-2">
+            <ThemeCollectorWidget themes={themes} isLoading={isLoading} />
+          </div>
+          
+          {/* Row 3: Response Log and Chat */}
+          <ResponseLogWidget interviews={interviews} isLoading={isLoading} />
+          <ChatWidget />
+        </div>
+      </main>
+    </div>
+  );
+};
 
 export default App;
