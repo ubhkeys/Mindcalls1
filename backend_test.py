@@ -216,10 +216,71 @@ class MindCallsAPITester:
             # Check if interviews data is present
             if "interviews" in data and isinstance(data["interviews"], list):
                 print(f"✅ Interviews endpoint returned {len(data['interviews'])} interviews")
+                
+                # Store interview IDs for later use in single interview test
+                if data["interviews"]:
+                    self.interview_ids = [interview.get("id") for interview in data["interviews"] if interview.get("id")]
+                    print(f"Found {len(self.interview_ids)} interview IDs for further testing")
+                
                 return True
             else:
                 print("❌ Interviews endpoint did not return expected data structure")
                 self.failures.append("Interviews: Invalid response structure")
+                return False
+        return False
+        
+    def test_single_interview(self):
+        """Test the single interview endpoint with anonymization"""
+        if not hasattr(self, 'interview_ids') or not self.interview_ids:
+            print("❌ Cannot test single interview without interview IDs")
+            self.failures.append("Single Interview: No interview IDs available")
+            return False
+            
+        interview_id = self.interview_ids[0]
+        print(f"Testing single interview with ID: {interview_id}")
+        
+        success, data = self.run_test(
+            "Single Interview",
+            "GET",
+            f"interview/{interview_id}",
+            auth=False  # Check if this endpoint requires auth
+        )
+        
+        if success:
+            # Check if interview data is present with full transcript
+            if "transcript" in data and isinstance(data["transcript"], str):
+                transcript = data["transcript"]
+                print(f"✅ Single interview endpoint returned transcript of length: {len(transcript)}")
+                
+                # Test anonymization of Danish names
+                danish_names = ["Anders", "Mette", "Søren", "Lars", "Jens", "Niels", "Hans", "Peter", "Jørgen", "Henrik"]
+                
+                # Check if any Danish names appear in the transcript
+                found_names = [name for name in danish_names if name in transcript]
+                
+                if found_names:
+                    print(f"❌ Found non-anonymized Danish names in transcript: {', '.join(found_names)}")
+                    self.failures.append(f"Anonymization: Found non-anonymized names: {', '.join(found_names)}")
+                    return False
+                
+                # Check for "anonym" in the transcript (case-insensitive)
+                if "anonym" in transcript.lower():
+                    print("✅ Found anonymized content in transcript")
+                    
+                    # Check for capitalization preservation
+                    if "Anonym" in transcript and "anonym" in transcript:
+                        print("✅ Anonymization preserves capitalization")
+                    else:
+                        print("⚠️ Could not verify if anonymization preserves capitalization")
+                    
+                    return True
+                else:
+                    print("⚠️ Could not find 'anonym' in transcript - either no names were present or anonymization is not working")
+                    
+                return True
+            else:
+                print("❌ Single interview endpoint did not return expected transcript")
+                self.failures.append("Single Interview: Invalid response structure")
                 return False
         return False
 
