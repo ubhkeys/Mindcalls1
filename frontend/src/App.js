@@ -721,7 +721,7 @@ const App = () => {
         <footer className="bg-white border-t mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="text-center text-sm text-gray-500">
-              Vapi AI Dashboard v1.0 - Protected Access ✅
+              MindCalls v1.0 - Protected Access ✅
               {overview && (
                 <span className="ml-4">
                   Aktive interviews: {overview.total_interviews} | 
