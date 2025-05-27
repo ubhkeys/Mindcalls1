@@ -33,25 +33,27 @@ def anonymize_transcript(transcript: str) -> str:
     if not transcript:
         return transcript
     
-    # Common Danish names to replace with "anonym"
+    # Extended list of Danish names to replace with "anonym"
     danish_names = [
         # Male names
         'lars', 'ole', 'niels', 'erik', 'henrik', 'peter', 'søren', 'jens', 'michael', 'thomas',
         'anders', 'morten', 'martin', 'jan', 'finn', 'bent', 'kurt', 'hans', 'christian', 'jesper',
         'klaus', 'torben', 'bjørn', 'john', 'rene', 'brian', 'leif', 'poul', 'svend', 'preben',
+        'ulrik', 'rasmus', 'simon', 'daniel', 'emil', 'gustav', 'oliver', 'victor', 'william',
         
         # Female names  
         'anne', 'kirsten', 'mette', 'lene', 'susanne', 'hanne', 'inge', 'birthe', 'lone', 'pia',
         'karen', 'bente', 'dorthe', 'tina', 'camilla', 'louise', 'charlotte', 'maria', 'emma', 'sofia',
         'ida', 'freja', 'alma', 'clara', 'laura', 'maja', 'caroline', 'mathilde', 'isabella', 'anna',
+        'julie', 'sofie', 'liva', 'agnes', 'ellen', 'astrid', 'ingrid', 'malou', 'nanna', 'signe',
         
         # Common surnames
         'nielsen', 'hansen', 'andersen', 'pedersen', 'larsen', 'sørensen', 'rasmussen', 'jørgensen',
         'petersen', 'madsen', 'kristensen', 'olsen', 'thomsen', 'christiansen', 'poulsen', 'johansen',
-        'møller', 'mortensen', 'jensen', 'knudsen'
+        'møller', 'mortensen', 'jensen', 'knudsen', 'lind', 'schmidt', 'eriksen', 'holm'
     ]
     
-    # Split into words and check each
+    # Replace names in transcript
     words = transcript.split()
     anonymized_words = []
     
