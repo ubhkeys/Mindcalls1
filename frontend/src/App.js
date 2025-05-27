@@ -612,75 +612,167 @@ const InterviewReaderWidget = ({ interviews, isLoading }) => {
     </div>
   );
 };
-  const [messages, setMessages] = useState([
-    { type: 'bot', content: 'Hej! Spørg mig om interview data, temaer, karakterer eller sentiment.' }
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedInterview, setSelectedInterview] = useState(null);
+  const [fullTranscript, setFullTranscript] = useState(null);
+  const [loadingTranscript, setLoadingTranscript] = useState(false);
+  const [filter, setFilter] = useState('');
 
-  const handleSendMessage = async () => {
-    if (!input.trim()) return;
-
-    const userMessage = { type: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
-
+  const fetchFullTranscript = async (interviewId) => {
+    setLoadingTranscript(true);
     try {
-      const response = await apiCall('chat', {
-        method: 'POST',
-        body: JSON.stringify({ question: input })
-      });
-      
-      setMessages(prev => [...prev, { type: 'bot', content: response.answer }]);
+      const data = await apiCall(`interview/${interviewId}`);
+      setFullTranscript(data);
+      setSelectedInterview(interviewId);
     } catch (error) {
-      setMessages(prev => [...prev, { type: 'bot', content: 'Beklager, jeg kunne ikke behandle dit spørgsmål.' }]);
+      console.error('Error fetching full transcript:', error);
+    } finally {
+      setLoadingTranscript(false);
     }
-
-    setInput('');
-    setIsLoading(false);
   };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const interviewsArray = Array.isArray(interviews) ? interviews : [];
+  const filteredInterviews = interviewsArray.filter(interview => 
+    (interview?.supermarket || '').toLowerCase().includes(filter.toLowerCase()) ||
+    (interview?.transcript || '').toLowerCase().includes(filter.toLowerCase())
+  );
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">💬 Chat med Dashboard</h2>
-      
-      <div className="h-64 overflow-y-auto border border-gray-200 rounded-lg p-4 mb-4 space-y-3">
-        {messages.map((message, index) => (
-          <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-xs px-4 py-2 rounded-lg ${
-              message.type === 'user' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-100 text-gray-800'
-            }`}>
-              {message.content}
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg">
-              Tænker...
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex space-x-2">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">📖 Interview Læser</h2>
         <input
           type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          placeholder="Stil et spørgsmål..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          placeholder="Søg i interviews..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         />
-        <button
-          onClick={handleSendMessage}
-          disabled={isLoading}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-        >
-          Send
-        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Interview List */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Vælg Interview</h3>
+          <div className="max-h-96 overflow-y-auto space-y-3">
+            {filteredInterviews.length > 0 ? filteredInterviews.map((interview) => (
+              <div 
+                key={interview?.id || Math.random()} 
+                className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                  selectedInterview === interview?.id 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                }`}
+                onClick={() => fetchFullTranscript(interview?.id)}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center space-x-3">
+                    <span className="font-medium text-gray-800">
+                      {interview?.supermarket || 'Ukendt supermarked'}
+                    </span>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      (interview?.status || 'unknown') === 'completed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {(interview?.status || 'unknown') === 'completed' ? 'Gennemført' : 'Aktiv'}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {interview?.timestamp ? new Date(interview.timestamp).toLocaleDateString('da-DK') : 'Ukendt dato'}
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 line-clamp-2">
+                  {interview?.transcript ? (interview.transcript.substring(0, 100) + '...') : 'Ingen transskription'}
+                </p>
+                <div className="flex justify-between items-center mt-2">
+                  <div className="text-sm text-gray-500">
+                    Varighed: {interview?.duration ? Math.floor(interview.duration / 60) : 0}:{interview?.duration ? (interview.duration % 60).toString().padStart(2, '0') : '00'}
+                  </div>
+                  <div className="text-sm font-medium text-blue-600">
+                    Samlet: {interview?.ratings?.samlet_karakter || 'N/A'}/10
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <div className="text-center text-gray-500 py-8">
+                {filter ? 'Ingen interviews matcher søgningen' : 'Ingen interviews fundet'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Full Transcript Display */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Fuldt Referat</h3>
+          
+          {loadingTranscript ? (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner message="Indlæser referat..." />
+            </div>
+          ) : fullTranscript ? (
+            <div className="bg-gray-50 rounded-lg p-6">
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="text-lg font-semibold text-gray-800">
+                    {fullTranscript.supermarket}
+                  </h4>
+                  <span className="text-sm text-gray-500">
+                    {new Date(fullTranscript.timestamp).toLocaleString('da-DK')}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <span>Varighed: {Math.floor(fullTranscript.duration / 60)}:{(fullTranscript.duration % 60).toString().padStart(2, '0')}</span>
+                  <span>Status: {fullTranscript.status === 'completed' ? 'Gennemført' : 'Aktiv'}</span>
+                  <span className="text-blue-600">🔒 Anonymiseret</span>
+                </div>
+              </div>
+              
+              <div className="max-h-96 overflow-y-auto">
+                <div className="prose prose-sm max-w-none">
+                  <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                    {fullTranscript.transcript}
+                  </div>
+                </div>
+              </div>
+              
+              {fullTranscript.ratings && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h5 className="font-medium text-gray-800 mb-2">Karakterer:</h5>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>Udvalg: {fullTranscript.ratings.udvalg_af_varer}/10</div>
+                    <div>Indretning: {fullTranscript.ratings.overskuelighed_indretning}/10</div>
+                    <div>Personale: {fullTranscript.ratings.stemning_personal}/10</div>
+                    <div>Priser: {fullTranscript.ratings.prisniveau_kvalitet}/10</div>
+                    <div className="col-span-2 font-medium">
+                      Samlet: {fullTranscript.ratings.samlet_karakter}/10
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-lg p-12 text-center">
+              <div className="text-gray-400 text-6xl mb-4">📖</div>
+              <h4 className="text-lg font-medium text-gray-600 mb-2">Vælg et Interview</h4>
+              <p className="text-gray-500">Klik på et interview til venstre for at læse det fulde anonymiserede referat</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
