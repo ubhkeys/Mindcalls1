@@ -941,7 +941,10 @@ async def get_full_interview(interview_id: str, user: dict = Depends(verify_acce
         
         logger.info(f"Full interview requested by {user['email']} for interview {interview_id}")
         
-        # Return full interview (already anonymized in process_vapi_calls)
+        # Anonymize the transcript
+        anonymized_transcript = anonymize_transcript(target_interview['transcript'])
+        
+        # Return full interview with anonymized transcript
         return {
             "id": target_interview['id'],
             "timestamp": target_interview['timestamp'],
@@ -949,7 +952,7 @@ async def get_full_interview(interview_id: str, user: dict = Depends(verify_acce
             "supermarket": target_interview['supermarket'],
             "status": target_interview['status'],
             "ratings": target_interview['ratings'],
-            "transcript": target_interview['transcript'],  # Already anonymized
+            "transcript": anonymized_transcript,
             "original_length": len(target_interview['transcript']),
             "anonymized": True
         }
