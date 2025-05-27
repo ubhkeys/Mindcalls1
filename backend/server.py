@@ -481,30 +481,6 @@ def process_vapi_calls(vapi_calls):
     
     return processed_calls
 
-def extract_simple_themes(transcript):
-    """Extract simple themes from transcript"""
-    if not transcript:
-        return []
-    
-    theme_keywords = {
-        'udvalg': ['udvalg', 'varer', 'sortiment', 'produkter'],
-        'personale': ['personale', 'kassedame', 'ekspedient', 'service', 'hjælp'],
-        'priser': ['pris', 'billig', 'dyr', 'høj', 'rimelig'],
-        'indretning': ['indretning', 'overskuelig', 'navigation', 'stor', 'lille'],
-        'kø': ['kø', 'vente', 'hurtig', 'lang', 'tid'],
-        'atmosfære': ['atmosfære', 'stemning', 'miljø', 'hyggelig'],
-        'renlighed': ['ren', 'pæn', 'beskidt', 'rod']
-    }
-    
-    found_themes = []
-    transcript_lower = transcript.lower()
-    
-    for theme, keywords in theme_keywords.items():
-        if any(keyword in transcript_lower for keyword in keywords):
-            found_themes.append(theme)
-    
-    return found_themes
-
 # Mock data for development - Enhanced with theme-relevant content
 MOCK_INTERVIEWS = [
     {
