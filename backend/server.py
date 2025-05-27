@@ -37,6 +37,143 @@ ASSISTANT_NAME = os.environ.get('ASSISTANT_NAME', 'Supermarket int. dansk')
 if OPENAI_API_KEY:
     openai.api_key = OPENAI_API_KEY
 
+# Vapi API functions
+async def fetch_vapi_calls():
+    """Fetch calls from Vapi API"""
+    if not VAPI_API_KEY:
+        print("Warning: No Vapi API key provided, using mock data")
+        return MOCK_INTERVIEWS
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {
+                "Authorization": f"Bearer {VAPI_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            # Fetch calls from Vapi
+            response = await client.get(
+                "https://api.vapi.ai/call", 
+                headers=headers,
+                params={"assistantId": VAPI_ASSISTANT_ID} if VAPI_ASSISTANT_ID else {}
+            )
+            
+            if response.status_code == 200:
+                calls_data = response.json()
+                print(f"Successfully fetched {len(calls_data)} calls from Vapi")
+                return process_vapi_calls(calls_data)
+            else:
+                print(f"Vapi API error: {response.status_code} - {response.text}")
+                return MOCK_INTERVIEWS
+                
+    except Exception as e:
+        print(f"Error fetching Vapi calls: {e}")
+        return MOCK_INTERVIEWS
+
+def process_vapi_calls(vapi_calls):
+    """Process Vapi call data into our format"""
+    processed_calls = []
+    
+    for call in vapi_calls:
+        try:
+            # Extract basic call info
+            call_id = call.get('id', str(uuid.uuid4()))
+            status = call.get('status', 'unknown')
+            created_at = call.get('createdAt', datetime.now().isoformat())
+            ended_at = call.get('endedAt')
+            duration = call.get('duration', 0) or 0
+            
+            # Extract transcript
+            transcript = ""
+            if call.get('transcript'):
+                # Vapi transcript is usually an object or array
+                transcript_data = call['transcript']
+                if isinstance(transcript_data, list):
+                    transcript = " ".join([msg.get('content', '') for msg in transcript_data if msg.get('role') == 'user'])
+                elif isinstance(transcript_data, str):
+                    transcript = transcript_data
+                else:
+                    transcript = str(transcript_data)
+            
+            # Extract or generate supermarket name
+            supermarket = "Ukendt supermarked"
+            if call.get('metadata') and call['metadata'].get('supermarket'):
+                supermarket = call['metadata']['supermarket']
+            elif transcript:
+                # Try to extract supermarket name from transcript
+                supermarket_keywords = {
+                    'netto': 'Netto',
+                    'bilka': 'Bilka', 
+                    'rema': 'Rema 1000',
+                    'irma': 'Irma',
+                    'kvickly': 'Kvickly',
+                    'fakta': 'Fakta',
+                    'lidl': 'Lidl',
+                    'aldi': 'Aldi'
+                }
+                transcript_lower = transcript.lower()
+                for keyword, name in supermarket_keywords.items():
+                    if keyword in transcript_lower:
+                        supermarket = name
+                        break
+            
+            # Generate mock ratings if not available
+            ratings = {
+                "udvalg_af_varer": 7,
+                "overskuelighed_indretning": 7,
+                "stemning_personal": 8,
+                "prisniveau_kvalitet": 6,
+                "samlet_karakter": 7
+            }
+            
+            # Try to extract ratings from call data or transcript
+            if call.get('analysis') or call.get('summary'):
+                # You could implement rating extraction logic here
+                pass
+            
+            processed_call = {
+                "id": call_id,
+                "timestamp": created_at,
+                "duration": int(duration),
+                "supermarket": supermarket,
+                "status": "completed" if status == "ended" else status,
+                "ratings": ratings,
+                "transcript": transcript or "Ingen transskription tilgængelig",
+                "themes": extract_simple_themes(transcript) if transcript else []
+            }
+            
+            processed_calls.append(processed_call)
+            
+        except Exception as e:
+            print(f"Error processing call {call.get('id', 'unknown')}: {e}")
+            continue
+    
+    return processed_calls
+
+def extract_simple_themes(transcript):
+    """Extract simple themes from transcript"""
+    if not transcript:
+        return []
+    
+    theme_keywords = {
+        'udvalg': ['udvalg', 'varer', 'sortiment', 'produkter'],
+        'personale': ['personale', 'kassedame', 'ekspedient', 'service', 'hjælp'],
+        'priser': ['pris', 'billig', 'dyr', 'høj', 'rimelig'],
+        'indretning': ['indretning', 'overskuelig', 'navigation', 'stor', 'lille'],
+        'kø': ['kø', 'vente', 'hurtig', 'lang', 'tid'],
+        'atmosfære': ['atmosfære', 'stemning', 'miljø', 'hyggelig'],
+        'renlighed': ['ren', 'pæn', 'beskidt', 'rod']
+    }
+    
+    found_themes = []
+    transcript_lower = transcript.lower()
+    
+    for theme, keywords in theme_keywords.items():
+        if any(keyword in transcript_lower for keyword in keywords):
+            found_themes.append(theme)
+    
+    return found_themes
+
 # Mock data for development
 MOCK_INTERVIEWS = [
     {
