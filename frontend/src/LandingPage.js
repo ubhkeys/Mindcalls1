@@ -100,7 +100,7 @@ const LandingPage = ({ onLogin }) => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Real-time Analytics</h3>
-                  <p className="text-gray-600">Live data fra Vapi AI interviews</p>
+                  <p className="text-gray-600">Live data fra MindCalls AI interviews</p>
                 </div>
               </div>
               
