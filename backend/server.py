@@ -668,7 +668,7 @@ async def get_overview(request: Request, user: dict = Depends(verify_access_toke
         raise HTTPException(status_code=500, detail="Kunne ikke hente oversigtsdata")
 
 @app.get("/api/themes")
-async def get_themes(request: Request, days: int = Query(7, description="Number of days to look back")):
+async def get_themes(request: Request, user: dict = Depends(verify_access_token), days: int = Query(7, description="Number of days to look back")):
     """Get theme analysis with sentiment"""
     try:
         # Use same cached data as overview
