@@ -470,10 +470,24 @@ def extract_themes_with_clustering(transcripts: List[str]) -> Dict[str, List[Dic
 async def get_overview(request: Request):
     """Get dashboard overview statistics with caching"""
     try:
-        def fetch_overview_data():
-            return asyncio.run(fetch_vapi_calls())
+        # Use async caching
+        cache_key = "vapi_calls"
+        current_time = time.time()
         
-        interviews = get_cached_or_fetch("vapi_calls", fetch_overview_data, 180)  # 3 minute cache
+        # Check cache first
+        if cache_key in api_cache:
+            cached_data, timestamp = api_cache[cache_key]
+            if current_time - timestamp < 180:  # 3 minute cache
+                logger.info(f"Cache hit for {cache_key}")
+                interviews = cached_data
+            else:
+                logger.info(f"Cache expired for {cache_key}, fetching new data")
+                interviews = await fetch_vapi_calls()
+                api_cache[cache_key] = (interviews, current_time)
+        else:
+            logger.info(f"Cache miss for {cache_key}, fetching new data")
+            interviews = await fetch_vapi_calls()
+            api_cache[cache_key] = (interviews, current_time)
         
         total_interviews = len(interviews)
         active_interviews = len([i for i in interviews if i['status'] == 'active'])
