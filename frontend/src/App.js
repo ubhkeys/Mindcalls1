@@ -1,7 +1,96 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Dashboard Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-red-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-xl shadow-lg max-w-md text-center">
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Dashboard Fejl</h2>
+            <p className="text-gray-600 mb-4">Der opstod en uventet fejl. Prøv at genindlæse siden.</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Genindlæs
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// API utility functions
+const apiCall = async (endpoint, options = {}) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} - ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`API call failed for ${endpoint}:`, error);
+    throw error;
+  }
+};
+
+// Loading Component
+const LoadingSpinner = ({ message = "Indlæser..." }) => (
+  <div className="flex items-center justify-center space-x-3">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+    <span className="text-gray-600">{message}</span>
+  </div>
+);
+
+// Error Message Component
+const ErrorMessage = ({ message, onRetry }) => (
+  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+    <div className="flex items-center space-x-3">
+      <div className="text-red-500">⚠️</div>
+      <div className="flex-1">
+        <h3 className="text-red-800 font-medium">Fejl</h3>
+        <p className="text-red-600 text-sm">{message}</p>
+      </div>
+      {onRetry && (
+        <button 
+          onClick={onRetry}
+          className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+        >
+          Prøv igen
+        </button>
+      )}
+    </div>
+  </div>
+);
 
 // Theme Collector Component - The centerpiece widget
 const ThemeCollectorWidget = ({ themes, isLoading }) => {
