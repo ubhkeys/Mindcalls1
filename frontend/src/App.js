@@ -44,6 +44,8 @@ class ErrorBoundary extends React.Component {
 // API utility functions
 const apiCall = async (endpoint, options = {}) => {
   try {
+    console.log(`Making API call to: ${API_BASE_URL}/api/${endpoint}`);
+    
     const response = await fetch(`${API_BASE_URL}/api/${endpoint}`, {
       ...options,
       headers: {
@@ -52,11 +54,16 @@ const apiCall = async (endpoint, options = {}) => {
       },
     });
 
+    console.log(`API response for ${endpoint}:`, response.status, response.statusText);
+
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} - ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`API Error: ${response.status} - ${response.statusText} - ${errorText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log(`API data for ${endpoint}:`, data);
+    return data;
   } catch (error) {
     console.error(`API call failed for ${endpoint}:`, error);
     throw error;
