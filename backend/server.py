@@ -569,31 +569,96 @@ def analyze_sentiment_with_openai(text: str) -> str:
         return 'neutral'
 
 def extract_themes_with_clustering(transcripts: List[str]) -> Dict[str, List[Dict]]:
-    """Extract and cluster themes from transcripts"""
+    """Extract and cluster themes from transcripts with relevant quotes"""
     if not transcripts:
         return {}
     
-    # Simple theme extraction for demo
+    # Enhanced theme patterns with more specific keywords
     theme_patterns = {
-        'udvalg': ['udvalg', 'varer', 'sortiment', 'produkter'],
-        'personale': ['personale', 'kassedame', 'ekspedient', 'service', 'hjælp'],
-        'priser': ['pris', 'billig', 'dyr', 'høj', 'rimelig'],
-        'indretning': ['indretning', 'overskuelig', 'navigation', 'stor', 'lille'],
-        'kø-oplevelse': ['kø', 'vente', 'hurtig', 'lang', 'tid'],
-        'atmosfære': ['atmosfære', 'stemning', 'miljø', 'hyggelig'],
-        'renlighed': ['ren', 'pæn', 'beskidt', 'rod'],
-        'friskhed': ['frisk', 'grøntsag', 'kød', 'fisk', 'øko']
+        'udvalg': {
+            'keywords': ['udvalg', 'varer', 'sortiment', 'produkter', 'selection', 'mange', 'få', 'alt', 'find'],
+            'positive_patterns': ['godt udvalg', 'stort udvalg', 'fantastisk udvalg', 'kan finde alt', 'mange varer'],
+            'negative_patterns': ['lille udvalg', 'begrænset udvalg', 'få varer', 'ikke finde', 'mangler']
+        },
+        'personale': {
+            'keywords': ['personale', 'kassedame', 'ekspedient', 'service', 'hjælp', 'venlig', 'professionel', 'stresset'],
+            'positive_patterns': ['venligt personale', 'hjælpsomt', 'søde', 'professionelt', 'service'],
+            'negative_patterns': ['stresset', 'ikke tid', 'uhøflig', 'ikke hjælpe']
+        },
+        'priser': {
+            'keywords': ['pris', 'billig', 'dyr', 'høj', 'rimelig', 'kostbar', 'luksusbetegnelse', 'økonomisk'],
+            'positive_patterns': ['rimelige priser', 'gode priser', 'billig', 'økonomisk'],
+            'negative_patterns': ['høje priser', 'dyre', 'kostbar', 'luksusbetegnelse']
+        },
+        'indretning': {
+            'keywords': ['indretning', 'overskuelig', 'navigation', 'stor', 'lille', 'flot', 'let at navigere'],
+            'positive_patterns': ['overskuelig', 'let at navigere', 'flot indrettet', 'pæn'],
+            'negative_patterns': ['svært at finde', 'ikke overskuelig', 'rodet', 'forvirrende']
+        },
+        'kø': {
+            'keywords': ['kø', 'vente', 'hurtig', 'lang', 'tid', 'kasser'],
+            'positive_patterns': ['ikke så lange', 'hurtig', 'ingen kø'],
+            'negative_patterns': ['lange køer', 'vente længe', 'meget lang']
+        },
+        'atmosfære': {
+            'keywords': ['atmosfære', 'stemning', 'miljø', 'hyggelig', 'dejlig', 'rart'],
+            'positive_patterns': ['dejlig atmosfære', 'hyggelig', 'rart miljø', 'god stemning'],
+            'negative_patterns': ['dårlig atmosfære', 'ubehagelig', 'ikke rart']
+        },
+        'renlighed': {
+            'keywords': ['ren', 'pæn', 'beskidt', 'rod', 'ryddet'],
+            'positive_patterns': ['ren', 'pæn', 'ryddet'],
+            'negative_patterns': ['beskidt', 'rod', 'uryddet']
+        },
+        'friskhed': {
+            'keywords': ['frisk', 'grøntsag', 'kød', 'fisk', 'øko', 'kvalitet', 'dårlig'],
+            'positive_patterns': ['friske grøntsager', 'god kvalitet', 'frisk', 'øko'],
+            'negative_patterns': ['ikke frisk', 'dårlig kvalitet', 'gammel']
+        }
     }
     
     themes = defaultdict(list)
     
     for i, transcript in enumerate(transcripts):
+        if i >= len(MOCK_INTERVIEWS):
+            break
+            
         transcript_lower = transcript.lower()
-        for theme, keywords in theme_patterns.items():
-            if any(keyword in transcript_lower for keyword in keywords):
-                sentiment = analyze_sentiment_with_openai(transcript)
-                themes[theme].append({
-                    'text': transcript,
+        
+        for theme_name, theme_config in theme_patterns.items():
+            # Check if any keywords match
+            if any(keyword in transcript_lower for keyword in theme_config['keywords']):
+                
+                # Determine sentiment based on patterns in the transcript
+                sentiment = 'neutral'  # default
+                
+                # Check for positive patterns
+                if any(pattern in transcript_lower for pattern in theme_config['positive_patterns']):
+                    sentiment = 'positive'
+                # Check for negative patterns
+                elif any(pattern in transcript_lower for pattern in theme_config['negative_patterns']):
+                    sentiment = 'negative'
+                else:
+                    # Fallback to general sentiment analysis
+                    sentiment = analyze_sentiment_with_openai(transcript)
+                
+                # Extract relevant quote (the sentence containing the theme keywords)
+                sentences = transcript.split('.')
+                relevant_quote = transcript  # fallback
+                
+                for sentence in sentences:
+                    sentence_lower = sentence.lower()
+                    if any(keyword in sentence_lower for keyword in theme_config['keywords']):
+                        relevant_quote = sentence.strip()
+                        if relevant_quote:
+                            break
+                
+                # Ensure the quote is not too long
+                if len(relevant_quote) > 200:
+                    relevant_quote = relevant_quote[:200] + '...'
+                
+                themes[theme_name].append({
+                    'text': relevant_quote,
                     'sentiment': sentiment,
                     'timestamp': MOCK_INTERVIEWS[i]['timestamp'],
                     'supermarket': MOCK_INTERVIEWS[i]['supermarket']
