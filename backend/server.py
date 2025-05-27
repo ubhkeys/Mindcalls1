@@ -446,30 +446,71 @@ async def get_supermarkets():
 async def chat_query(query: ChatQuery):
     """Answer questions about the dashboard data"""
     question = query.question.lower()
+    interviews = await fetch_vapi_calls()
     
     # Simple question answering logic
     if 'hvor mange' in question and 'interview' in question:
         if 'uge' in question or 'week' in question:
-            return {"answer": f"Der blev lavet {len(MOCK_INTERVIEWS)} interviews i sidste uge."}
+            return {"answer": f"Der blev lavet {len(interviews)} interviews i denne periode."}
         else:
-            return {"answer": f"Der er i alt {len(MOCK_INTERVIEWS)} gennemførte interviews."}
+            return {"answer": f"Der er i alt {len(interviews)} gennemførte interviews."}
     
     elif 'sentiment' in question or 'stemning' in question:
         if 'kø' in question:
-            return {"answer": "Sentimentfordelingen for tema 'kø-oplevelse': 40% positive, 30% neutral, 30% negative"}
+            return {"answer": "Sentimentfordelingen for tema 'kø-oplevelse' bliver beregnet baseret på jeres Vapi data."}
         else:
-            return {"answer": "Overordnet sentiment: 45% positive, 35% neutral, 20% negative"}
+            return {"answer": "Overordnet sentiment bliver analyseret fra jeres interviews med OpenAI."}
     
     elif 'karakter' in question or 'rating' in question:
-        avg_rating = sum(interview['ratings']['samlet_karakter'] for interview in MOCK_INTERVIEWS) / len(MOCK_INTERVIEWS)
-        return {"answer": f"Gennemsnitlig samlet karakter er {avg_rating:.1f} ud af 10."}
+        if interviews:
+            avg_rating = sum(interview['ratings']['samlet_karakter'] for interview in interviews) / len(interviews)
+            return {"answer": f"Gennemsnitlig samlet karakter er {avg_rating:.1f} ud af 10 baseret på {len(interviews)} interviews."}
+        else:
+            return {"answer": "Ingen ratings data tilgængelig endnu."}
     
     elif 'tema' in question or 'theme' in question:
-        themes = ['Udvalg', 'Personale', 'Priser', 'Indretning', 'Atmosfære']
-        return {"answer": f"De mest nævnte temaer er: {', '.join(themes[:3])}"}
+        return {"answer": f"Temaer bliver automatisk ekstraheret fra jeres {len(interviews)} Vapi interviews og analyseret for sentiment."}
     
     else:
-        return {"answer": "Jeg kan hjælpe dig med spørgsmål om interviews, temaer, karakterer og sentiment. Prøv at spørge: 'Hvor mange interviews blev lavet i denne uge?'"}
+        return {"answer": f"Jeg kan hjælpe dig med spørgsmål om jeres {len(interviews)} interviews, temaer, karakterer og sentiment. Prøv at spørge: 'Hvor mange interviews blev lavet i denne uge?'"}
+
+# Add endpoint to test Vapi connection
+@app.get("/api/vapi/test")
+async def test_vapi_connection():
+    """Test connection to Vapi API"""
+    if not VAPI_API_KEY:
+        return {"status": "error", "message": "Ingen Vapi API key fundet"}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {
+                "Authorization": f"Bearer {VAPI_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            response = await client.get(
+                "https://api.vapi.ai/call", 
+                headers=headers,
+                params={"assistantId": VAPI_ASSISTANT_ID} if VAPI_ASSISTANT_ID else {}
+            )
+            
+            if response.status_code == 200:
+                calls_data = response.json()
+                return {
+                    "status": "success", 
+                    "message": f"Vapi forbindelse OK - fandt {len(calls_data)} opkald",
+                    "assistant_id": VAPI_ASSISTANT_ID,
+                    "calls_count": len(calls_data)
+                }
+            else:
+                return {
+                    "status": "error", 
+                    "message": f"Vapi API fejl: {response.status_code} - {response.text}",
+                    "response_code": response.status_code
+                }
+                
+    except Exception as e:
+        return {"status": "error", "message": f"Vapi forbindelsesfejl: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
