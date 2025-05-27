@@ -418,13 +418,17 @@ async def get_interviews(
     days: int = Query(7, description="Number of days to look back")
 ):
     """Get detailed interview responses"""
-    interviews = MOCK_INTERVIEWS.copy()
+    interviews = await fetch_vapi_calls()
     
     if supermarket:
         interviews = [i for i in interviews if supermarket.lower() in i['supermarket'].lower()]
     
     # Sort by timestamp (newest first)
-    interviews.sort(key=lambda x: x['timestamp'], reverse=True)
+    try:
+        interviews.sort(key=lambda x: datetime.fromisoformat(x['timestamp'].replace('Z', '+00:00')), reverse=True)
+    except:
+        # Fallback if timestamp parsing fails
+        interviews.reverse()
     
     return {
         "interviews": interviews[:limit],
