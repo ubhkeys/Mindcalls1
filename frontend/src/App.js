@@ -353,10 +353,11 @@ const ResponseLogWidget = ({ interviews, isLoading }) => {
     );
   }
 
-  const filteredInterviews = interviews?.filter(interview => 
-    interview.supermarket.toLowerCase().includes(filter.toLowerCase()) ||
-    interview.transcript.toLowerCase().includes(filter.toLowerCase())
-  ) || [];
+  const interviewsArray = Array.isArray(interviews) ? interviews : [];
+  const filteredInterviews = interviewsArray.filter(interview => 
+    (interview?.supermarket || '').toLowerCase().includes(filter.toLowerCase()) ||
+    (interview?.transcript || '').toLowerCase().includes(filter.toLowerCase())
+  );
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
@@ -371,34 +372,38 @@ const ResponseLogWidget = ({ interviews, isLoading }) => {
         />
       </div>
       <div className="max-h-96 overflow-y-auto space-y-4">
-        {filteredInterviews.map((interview) => (
-          <div key={interview.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+        {filteredInterviews.length > 0 ? filteredInterviews.map((interview) => (
+          <div key={interview?.id || Math.random()} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-2">
               <div className="flex items-center space-x-3">
-                <span className="font-medium text-gray-800">{interview.supermarket}</span>
+                <span className="font-medium text-gray-800">{interview?.supermarket || 'Ukendt supermarked'}</span>
                 <span className={`px-2 py-1 rounded-full text-xs ${
-                  interview.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  (interview?.status || 'unknown') === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                 }`}>
-                  {interview.status === 'completed' ? 'Gennemført' : 'Aktiv'}
+                  {(interview?.status || 'unknown') === 'completed' ? 'Gennemført' : 'Aktiv'}
                 </span>
               </div>
               <div className="text-sm text-gray-500">
-                {new Date(interview.timestamp).toLocaleString('da-DK')}
+                {interview?.timestamp ? new Date(interview.timestamp).toLocaleString('da-DK') : 'Ukendt dato'}
               </div>
             </div>
             <p className="text-sm text-gray-700 line-clamp-2">
-              {interview.transcript.substring(0, 150)}...
+              {interview?.transcript ? (interview.transcript.substring(0, 150) + '...') : 'Ingen transskription tilgængelig'}
             </p>
             <div className="flex justify-between items-center mt-3">
               <div className="text-sm text-gray-500">
-                Varighed: {Math.floor(interview.duration / 60)}:{(interview.duration % 60).toString().padStart(2, '0')}
+                Varighed: {interview?.duration ? Math.floor(interview.duration / 60) : 0}:{interview?.duration ? (interview.duration % 60).toString().padStart(2, '0') : '00'}
               </div>
               <div className="text-sm font-medium text-blue-600">
-                Samlet: {interview.ratings.samlet_karakter}/10
+                Samlet: {interview?.ratings?.samlet_karakter || 'N/A'}/10
               </div>
             </div>
           </div>
-        ))}
+        )) : (
+          <div className="text-center text-gray-500 py-8">
+            {filter ? 'Ingen interviews matcher filteret' : 'Ingen interviews fundet'}
+          </div>
+        )}
       </div>
     </div>
   );
