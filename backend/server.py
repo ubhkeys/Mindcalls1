@@ -470,8 +470,7 @@ def process_vapi_calls(vapi_calls):
                 "supermarket": supermarket,
                 "status": "completed" if status == "ended" else status,
                 "ratings": ratings,
-                "transcript": transcript or "Ingen transskription tilgængelig",
-                "themes": extract_simple_themes(transcript) if transcript else []
+                "transcript": anonymize_transcript(transcript) if transcript else "Ingen transskription tilgængelig"
             }
             
             processed_calls.append(processed_call)
