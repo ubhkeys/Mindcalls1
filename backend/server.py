@@ -525,7 +525,7 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 5,
             "samlet_karakter": 8
         },
-        "transcript": "Irma har altid en dejlig atmosfære og stemning. Personalet er super venligt og professionelt - de hjælper altid gerne. Butikken er flot indrettet og let at navigere i. De har gode økologiske varer og friske grøntsager. Men priserne er virkelig høje - det er en luksusbetegnelse at handle her.",
+        "transcript": "User: Irma har altid en dejlig atmosfære og stemning. User: Personalet er super venligt og professionelt - de hjælper altid gerne. User: Butikken er flot indrettet og let at navigere i. User: De har gode økologiske varer og friske grøntsager. User: Men priserne er virkelig høje - det er en luksusbetegnelse at handle her.",
         "themes": ["atmosfære", "personale", "indretning", "friskhed", "priser"]
     },
     {
