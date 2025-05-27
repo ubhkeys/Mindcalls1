@@ -387,6 +387,9 @@ def main():
     print("\n=== Testing Interviews Endpoint ===")
     interviews_success = tester.test_interviews()
     
+    print("\n=== Testing Single Interview Endpoint with Anonymization ===")
+    single_interview_success = tester.test_single_interview()
+    
     print("\n=== Testing Supermarkets Endpoint ===")
     supermarkets_success = tester.test_supermarkets()
     
