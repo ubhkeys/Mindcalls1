@@ -109,15 +109,58 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
         }
     )
 
-# Environment variables
+# Environment variables with validation
 VAPI_API_KEY = os.environ.get('VAPI_API_KEY')
 VAPI_ASSISTANT_ID = os.environ.get('VAPI_ASSISTANT_ID')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 ASSISTANT_NAME = os.environ.get('ASSISTANT_NAME', 'Supermarket int. dansk')
 
+# Validate required environment variables
+if not VAPI_API_KEY:
+    logger.warning("VAPI_API_KEY not found in environment variables")
+if not VAPI_ASSISTANT_ID:
+    logger.warning("VAPI_ASSISTANT_ID not found in environment variables")
+if not OPENAI_API_KEY:
+    logger.warning("OPENAI_API_KEY not found in environment variables")
+
 # Set OpenAI API key
 if OPENAI_API_KEY:
     openai.api_key = OPENAI_API_KEY
+
+# Simple cache for API responses
+api_cache = {}
+CACHE_DURATION = 300  # 5 minutes
+
+def get_cached_or_fetch(cache_key: str, fetch_func, cache_duration: int = CACHE_DURATION):
+    """Get data from cache or fetch if expired"""
+    current_time = time.time()
+    
+    if cache_key in api_cache:
+        cached_data, timestamp = api_cache[cache_key]
+        if current_time - timestamp < cache_duration:
+            logger.info(f"Cache hit for {cache_key}")
+            return cached_data
+    
+    # Fetch new data
+    logger.info(f"Cache miss for {cache_key}, fetching new data")
+    new_data = fetch_func()
+    api_cache[cache_key] = (new_data, current_time)
+    return new_data
+
+# Health check endpoint
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "services": {
+            "vapi_api_key": "configured" if VAPI_API_KEY else "missing",
+            "openai_api_key": "configured" if OPENAI_API_KEY else "missing",
+            "assistant_id": "configured" if VAPI_ASSISTANT_ID else "missing"
+        }
+    }
 
 # Vapi API functions
 async def fetch_vapi_calls():
