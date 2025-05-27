@@ -427,6 +427,11 @@ class VapiDashboardTester:
 
     def test_vapi_connection(self):
         """Test the Vapi API connection"""
+        if not self.access_token:
+            print("❌ Cannot test Vapi API connection without a valid token")
+            self.failures.append("Vapi API Connection: No token available")
+            return False
+            
         success, data = self.run_test(
             "Vapi API Connection",
             "GET",
@@ -455,10 +460,89 @@ class VapiDashboardTester:
             return True
         return False
         
+    def test_access_levels(self):
+        """Test different access levels"""
+        access_codes = {
+            "DEMO123": "Demo Access",
+            "SUPER2024": "Supermarket Premium Access",
+            "VAPI001": "Basic Dashboard Access",
+            "BETA2024": "Beta Tester Access"
+        }
+        
+        results = {}
+        
+        for code, expected_level in access_codes.items():
+            # Use a test email with the code to make it unique
+            test_email = f"test_{code.lower()}@example.com"
+            
+            # Try to login with this code
+            print(f"\n🔑 Testing access level for code: {code}")
+            success = self.test_login(test_email, code)
+            
+            if success:
+                # Store the access level we got
+                results[code] = {
+                    "expected": expected_level,
+                    "actual": self.access_level,
+                    "success": expected_level.lower() in self.access_level.lower()
+                }
+                
+                # Test a protected endpoint to verify access
+                self.test_overview_endpoint()
+                
+                # Logout to prepare for next code
+                self.test_logout()
+            else:
+                results[code] = {
+                    "expected": expected_level,
+                    "actual": "Login failed",
+                    "success": False
+                }
+        
+        # Print results
+        print("\n📊 Access Level Test Results:")
+        all_passed = True
+        
+        for code, result in results.items():
+            if result["success"]:
+                print(f"✅ {code}: Expected '{result['expected']}', got '{result['actual']}'")
+            else:
+                print(f"❌ {code}: Expected '{result['expected']}', got '{result['actual']}'")
+                self.failures.append(f"Access Level Test: {code} - Expected '{result['expected']}', got '{result['actual']}'")
+                all_passed = False
+        
+        return all_passed
+        
+    def test_invalid_login(self):
+        """Test login with invalid credentials"""
+        # Test with invalid access code
+        invalid_code_success = self.test_login("test@example.com", "INVALID_CODE", expected_status=401)
+        
+        # Test with invalid email format
+        invalid_email_success = self.test_login("not_an_email", "DEMO123", expected_status=422)
+        
+        return invalid_code_success and invalid_email_success
+        
     def run_all_tests(self):
         """Run all API tests"""
         print("🚀 Starting Vapi Dashboard API Tests")
         
+        # First test authentication and access levels
+        print("\n=== Testing Authentication and Access Levels ===")
+        self.test_invalid_login()
+        self.test_access_levels()
+        
+        # Login with a valid code for further tests
+        print("\n=== Logging in for Protected Endpoint Tests ===")
+        self.test_login("test@example.com", "DEMO123")
+        
+        # Test protected endpoints
+        print("\n=== Testing Protected Endpoints ===")
+        self.test_protected_endpoint_without_auth()
+        self.test_token_validation()
+        
+        # Test data endpoints
+        print("\n=== Testing Data Endpoints ===")
         tests = [
             self.test_vapi_connection,
             self.test_overview_endpoint,
@@ -471,6 +555,10 @@ class VapiDashboardTester:
         
         for test in tests:
             test()
+        
+        # Test logout
+        print("\n=== Testing Logout ===")
+        self.test_logout()
             
         # Print results
         print("\n📊 Test Results:")
