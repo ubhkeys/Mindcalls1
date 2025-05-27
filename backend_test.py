@@ -1,146 +1,9 @@
-def test_ai_quote_filtering(tester):
-    """Test that no AI quotes appear in the themes"""
-    if not tester.access_token:
-        print("❌ Cannot test AI quote filtering without a valid token")
-        tester.failures.append("AI Quote Filtering: No token available")
-        return False
-        
-    success, data = tester.run_test(
-        "AI Quote Filtering",
-        "GET",
-        "themes"
-    )
-    
-    if success:
-        # Validate response structure
-        if "themes" not in data:
-            print("❌ Missing 'themes' field in response")
-            tester.failures.append("AI Quote Filtering: Missing 'themes' field")
-            return False
-            
-        # Check if themes data is non-empty
-        if not data["themes"]:
-            print("❌ Themes list is empty")
-            tester.failures.append("AI Quote Filtering: Empty themes list")
-            return False
-        
-        # Check all quotes to ensure none start with "AI:" or "ai:"
-        all_quotes_filtered = True
-        ai_quotes_found = []
-        
-        for theme in data["themes"]:
-            for sentiment in ["positive", "neutral", "negative"]:
-                if sentiment in theme["sample_quotes"] and theme["sample_quotes"][sentiment]:
-                    for quote in theme["sample_quotes"][sentiment]:
-                        quote_text = quote["text"].strip()
-                        
-                        # Check if quote starts with AI: or ai:
-                        if quote_text.lower().startswith("ai:"):
-                            print(f"❌ AI quote found in {theme['name']} ({sentiment}): {quote_text[:50]}...")
-                            ai_quotes_found.append(quote_text)
-                            all_quotes_filtered = False
-                        
-                        # Check if quote contains AI: or ai: anywhere in the text
-                        if " ai:" in quote_text.lower() or "ai:" in quote_text.lower():
-                            print(f"❌ AI content found in {theme['name']} ({sentiment}): {quote_text[:50]}...")
-                            ai_quotes_found.append(quote_text)
-                            all_quotes_filtered = False
-                            
-                        # Check if quote contains typical AI assistant phrases
-                        ai_phrases = [
-                            "kan jeg hjælpe", 
-                            "hvordan kan jeg hjælpe", 
-                            "er der andet",
-                            "har du andre spørgsmål",
-                            "jeg er din assistent",
-                            "jeg er en ai"
-                        ]
-                        
-                        if any(phrase in quote_text.lower() for phrase in ai_phrases):
-                            print(f"❌ Potential AI content found in {theme['name']} ({sentiment}): {quote_text[:50]}...")
-                            ai_quotes_found.append(quote_text)
-                            all_quotes_filtered = False
-                            
-                        # Check if "User:" prefix was properly removed
-                        if quote_text.startswith("User:") or quote_text.startswith("user:"):
-                            print(f"❌ 'User:' prefix not removed in {theme['name']} ({sentiment}): {quote_text[:50]}...")
-                            tester.failures.append(f"AI Quote Filtering: 'User:' prefix not removed in {theme['name']}")
-                            all_quotes_filtered = False
-        
-        if all_quotes_filtered:
-            print("✅ All quotes are properly filtered - no AI content found")
-        else:
-            print(f"❌ Found {len(ai_quotes_found)} quotes with AI content")
-            tester.failures.append(f"AI Quote Filtering: Found {len(ai_quotes_found)} quotes with AI content")
-        
-        return all_quotes_filtered
-    return False
-
-def test_quote_length_and_quality(tester):
-    """Test that quotes are meaningful and of appropriate length"""
-    if not tester.access_token:
-        print("❌ Cannot test quote quality without a valid token")
-        tester.failures.append("Quote Quality: No token available")
-        return False
-        
-    success, data = tester.run_test(
-        "Quote Quality",
-        "GET",
-        "themes"
-    )
-    
-    if success:
-        # Validate response structure
-        if "themes" not in data:
-            print("❌ Missing 'themes' field in response")
-            tester.failures.append("Quote Quality: Missing 'themes' field")
-            return False
-            
-        # Check if themes data is non-empty
-        if not data["themes"]:
-            print("❌ Themes list is empty")
-            tester.failures.append("Quote Quality: Empty themes list")
-            return False
-        
-        # Check quote quality
-        all_quotes_good_quality = True
-        for theme in data["themes"]:
-            for sentiment in ["positive", "neutral", "negative"]:
-                if sentiment in theme["sample_quotes"] and theme["sample_quotes"][sentiment]:
-                    for quote in theme["sample_quotes"][sentiment]:
-                        quote_text = quote["text"].strip()
-                        
-                        # Check if quote is too short (less than 10 characters)
-                        if len(quote_text) < 10:
-                            print(f"❌ Quote in {theme['name']} is too short ({len(quote_text)} chars): {quote_text}")
-                            tester.failures.append(f"Quote Quality: Quote in {theme['name']} is too short")
-                            all_quotes_good_quality = False
-                        
-                        # Check if quote is too long (likely a full transcript)
-                        if len(quote_text) > 200:
-                            print(f"❌ Quote in {theme['name']} is too long ({len(quote_text)} chars): {quote_text[:50]}...")
-                            tester.failures.append(f"Quote Quality: Quote in {theme['name']} is too long")
-                            all_quotes_good_quality = False
-                        
-                        # Check if quote contains multiple sentences (should be single sentence)
-                        sentences = [s for s in quote_text.split('.') if s.strip()]
-                        if len(sentences) > 2:  # Allow for 2 sentences max
-                            print(f"❌ Quote in {theme['name']} has too many sentences ({len(sentences)}): {quote_text[:50]}...")
-                            tester.failures.append(f"Quote Quality: Quote in {theme['name']} has too many sentences")
-                            all_quotes_good_quality = False
-        
-        if all_quotes_good_quality:
-            print("✅ All quotes are of good quality (appropriate length and content)")
-        
-        return all_quotes_good_quality
-    return False
-
 import requests
 import sys
 import json
 from datetime import datetime
 
-class VapiDashboardTester:
+class MindCallsAPITester:
     def __init__(self, base_url):
         self.base_url = base_url
         self.tests_run = 0
@@ -227,29 +90,250 @@ class VapiDashboardTester:
         
         return False
 
+    def test_health_check(self):
+        """Test the health check endpoint"""
+        success, data = self.run_test(
+            "Health Check",
+            "GET",
+            "health",
+            auth=False
+        )
+        
+        if success:
+            # Verify the API title is "MindCalls API"
+            if data.get("version") == "1.0.0" and "healthy" in data.get("status", ""):
+                print("✅ Health check confirms API is healthy")
+                return True
+            else:
+                print("❌ Health check response does not indicate healthy status")
+                self.failures.append("Health Check: API not healthy")
+                return False
+        return False
+
+    def test_validate_token(self):
+        """Test token validation"""
+        if not self.access_token:
+            print("❌ Cannot test token validation without a valid token")
+            self.failures.append("Token Validation: No token available")
+            return False
+            
+        success, data = self.run_test(
+            "Token Validation",
+            "POST",
+            "auth/validate"
+        )
+        
+        if success:
+            if data.get("valid") and data.get("email") == self.user_email:
+                print("✅ Token validation successful")
+                return True
+            else:
+                print("❌ Token validation failed")
+                self.failures.append("Token Validation: Invalid response")
+                return False
+        return False
+
+    def test_overview(self):
+        """Test the overview endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test overview without a valid token")
+            self.failures.append("Overview: No token available")
+            return False
+            
+        success, data = self.run_test(
+            "Overview",
+            "GET",
+            "overview"
+        )
+        
+        if success:
+            # Check for MindCalls branding in assistant_name
+            assistant_name = data.get("assistant_name", "")
+            if "Vapi" in assistant_name:
+                print("❌ Overview contains 'Vapi' reference in assistant_name")
+                self.failures.append("Overview: Contains 'Vapi' reference")
+                return False
+            
+            print("✅ Overview endpoint working correctly with proper branding")
+            return True
+        return False
+
+    def test_themes(self):
+        """Test the themes endpoint"""
+        if not self.access_token:
+            print("❌ Cannot test themes without a valid token")
+            self.failures.append("Themes: No token available")
+            return False
+            
+        success, data = self.run_test(
+            "Themes",
+            "GET",
+            "themes"
+        )
+        
+        if success:
+            # Check if themes data is present
+            if "themes" in data and isinstance(data["themes"], list):
+                print(f"✅ Themes endpoint returned {len(data['themes'])} themes")
+                return True
+            else:
+                print("❌ Themes endpoint did not return expected data structure")
+                self.failures.append("Themes: Invalid response structure")
+                return False
+        return False
+
+    def test_ratings(self):
+        """Test the ratings endpoint"""
+        success, data = self.run_test(
+            "Ratings",
+            "GET",
+            "ratings",
+            auth=False  # This endpoint doesn't require auth
+        )
+        
+        if success:
+            # Check if ratings data is present
+            if "ratings" in data and isinstance(data["ratings"], dict):
+                print(f"✅ Ratings endpoint returned data for {len(data['ratings'])} questions")
+                return True
+            else:
+                print("❌ Ratings endpoint did not return expected data structure")
+                self.failures.append("Ratings: Invalid response structure")
+                return False
+        return False
+
+    def test_interviews(self):
+        """Test the interviews endpoint"""
+        success, data = self.run_test(
+            "Interviews",
+            "GET",
+            "interviews",
+            auth=False,  # This endpoint doesn't require auth
+            params={"limit": 5}
+        )
+        
+        if success:
+            # Check if interviews data is present
+            if "interviews" in data and isinstance(data["interviews"], list):
+                print(f"✅ Interviews endpoint returned {len(data['interviews'])} interviews")
+                return True
+            else:
+                print("❌ Interviews endpoint did not return expected data structure")
+                self.failures.append("Interviews: Invalid response structure")
+                return False
+        return False
+
+    def test_supermarkets(self):
+        """Test the supermarkets endpoint"""
+        success, data = self.run_test(
+            "Supermarkets",
+            "GET",
+            "supermarkets",
+            auth=False  # This endpoint doesn't require auth
+        )
+        
+        if success:
+            # Check if supermarkets data is present
+            if "supermarkets" in data and isinstance(data["supermarkets"], list):
+                print(f"✅ Supermarkets endpoint returned {len(data['supermarkets'])} supermarkets")
+                return True
+            else:
+                print("❌ Supermarkets endpoint did not return expected data structure")
+                self.failures.append("Supermarkets: Invalid response structure")
+                return False
+        return False
+
+    def test_chat(self):
+        """Test the chat endpoint"""
+        success, data = self.run_test(
+            "Chat",
+            "POST",
+            "chat",
+            data={"question": "Hvor mange interviews er der?"},
+            auth=False  # This endpoint doesn't require auth
+        )
+        
+        if success:
+            # Check if answer is present
+            if "answer" in data and isinstance(data["answer"], str):
+                # Check for Vapi references in the answer
+                if "Vapi" in data["answer"]:
+                    print("❌ Chat response contains 'Vapi' reference")
+                    self.failures.append("Chat: Contains 'Vapi' reference")
+                    return False
+                
+                print("✅ Chat endpoint returned a valid answer")
+                return True
+            else:
+                print("❌ Chat endpoint did not return expected data structure")
+                self.failures.append("Chat: Invalid response structure")
+                return False
+        return False
+
+    def test_vapi_connection(self):
+        """Test the Vapi connection endpoint"""
+        success, data = self.run_test(
+            "Vapi Connection",
+            "GET",
+            "vapi/test",
+            auth=False  # This endpoint doesn't require auth
+        )
+        
+        # This endpoint might still use "Vapi" in its name since it's connecting to the Vapi API
+        # We're just checking if it works, not checking for branding here
+        if success:
+            print("✅ Vapi connection test endpoint is working")
+            return True
+        return False
+
 def main():
     # Get backend URL from frontend .env
     backend_url = "https://83624c61-ccb9-4125-a85a-5be1f58ae949.preview.emergentagent.com"
     
     # Run tests
-    tester = VapiDashboardTester(backend_url)
+    tester = MindCallsAPITester(backend_url)
     
-    print("🚀 Starting Theme Collector AI Quote Filtering Tests")
+    print("🚀 Starting MindCalls API Tests")
+    print(f"Testing against API URL: {backend_url}")
+    
+    # Test health check (no auth required)
+    print("\n=== Testing Health Check ===")
+    health_check_success = tester.test_health_check()
     
     # Login with a valid code for tests
     print("\n=== Logging in for Testing ===")
     login_success = tester.test_login("test@example.com", "SUPER2024")
     
     if not login_success:
-        print("❌ Login failed, cannot proceed with tests")
-        return 1
+        print("❌ Login failed, cannot proceed with authenticated tests")
+    else:
+        # Test token validation
+        print("\n=== Testing Token Validation ===")
+        token_validation_success = tester.test_validate_token()
+        
+        # Test overview endpoint
+        print("\n=== Testing Overview Endpoint ===")
+        overview_success = tester.test_overview()
+        
+        # Test themes endpoint
+        print("\n=== Testing Themes Endpoint ===")
+        themes_success = tester.test_themes()
     
-    # Test the specific improvements
-    print("\n=== Testing AI Quote Filtering ===")
-    ai_filtering_success = test_ai_quote_filtering(tester)
+    # Test endpoints that don't require authentication
+    print("\n=== Testing Ratings Endpoint ===")
+    ratings_success = tester.test_ratings()
     
-    print("\n=== Testing Quote Quality ===")
-    quote_quality_success = test_quote_length_and_quality(tester)
+    print("\n=== Testing Interviews Endpoint ===")
+    interviews_success = tester.test_interviews()
+    
+    print("\n=== Testing Supermarkets Endpoint ===")
+    supermarkets_success = tester.test_supermarkets()
+    
+    print("\n=== Testing Chat Endpoint ===")
+    chat_success = tester.test_chat()
+    
+    print("\n=== Testing Vapi Connection Endpoint ===")
+    vapi_connection_success = tester.test_vapi_connection()
     
     # Print results
     print("\n📊 Test Results:")
@@ -262,8 +346,8 @@ def main():
     else:
         print("\n✅ All tests passed!")
     
-    # Return success if all specific tests passed
-    return 0 if ai_filtering_success and quote_quality_success else 1
+    # Return success if all tests passed
+    return 0 if tester.tests_passed == tester.tests_run else 1
 
 if __name__ == "__main__":
     sys.exit(main())
