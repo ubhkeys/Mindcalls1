@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ValidationError
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, ValidationError, EmailStr
 from typing import List, Optional, Dict, Any
 import os
 from dotenv import load_dotenv
@@ -21,6 +22,8 @@ import numpy as np
 import logging
 import time
 from functools import wraps
+import jwt
+import hashlib
 
 # Load environment variables
 load_dotenv()
