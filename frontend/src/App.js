@@ -301,28 +301,34 @@ const RatingsWidget = ({ ratings, isLoading }) => {
     );
   }
 
+  const ratingsArray = ratings ? Object.entries(ratings) : [];
+
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">📈 Standardkarakterer</h2>
       <div className="space-y-4">
-        {Object.entries(ratings || {}).map(([key, data]) => (
+        {ratingsArray.length > 0 ? ratingsArray.map(([key, data]) => (
           <div key={key} className="flex items-center space-x-4">
             <div className="w-1/3 text-sm font-medium text-gray-700">
-              {data.label}
+              {data?.label || key}
             </div>
             <div className="flex-1 bg-gray-200 rounded-full h-8 relative">
               <div 
                 className={`h-8 rounded-full flex items-center justify-end pr-3 text-white font-bold text-sm ${
-                  data.color === 'green' ? 'bg-green-500' : 
-                  data.color === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'
+                  (data?.color || 'gray') === 'green' ? 'bg-green-500' : 
+                  (data?.color || 'gray') === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'
                 }`}
-                style={{ width: `${(data.average / 10) * 100}%` }}
+                style={{ width: `${((data?.average || 0) / 10) * 100}%` }}
               >
-                {data.average}/10
+                {data?.average || 0}/10
               </div>
             </div>
           </div>
-        ))}
+        )) : (
+          <div className="text-center text-gray-500 py-8">
+            Ingen ratings data tilgængelig endnu
+          </div>
+        )}
       </div>
     </div>
   );
