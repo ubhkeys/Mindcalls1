@@ -477,7 +477,7 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 6,
             "samlet_karakter": 7
         },
-        "transcript": "Jeg synes butikken har et rigtig godt udvalg af varer, især de friske grøntsager er fantastiske. Personalet var meget venligt og hjælpsomt når jeg spurgte om hjælp. Priserne er lidt høje sammenlignet med andre steder, men kvaliteten er god. Køerne var ikke så lange i dag, så det gik hurtigt.",
+        "transcript": "User: Jeg synes butikken har et rigtig godt udvalg af varer, især de friske grøntsager er fantastiske. User: Personalet var meget venligt og hjælpsomt når jeg spurgte om hjælp. User: Priserne er lidt høje sammenlignet med andre steder, men kvaliteten er god. User: Køerne var ikke så lange i dag, så det gik hurtigt.",
         "themes": ["udvalg", "personale", "priser", "kø"]
     },
     {
