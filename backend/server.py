@@ -602,7 +602,7 @@ def extract_themes_with_clustering(transcripts: List[str]) -> Dict[str, List[Dic
     return dict(themes)
 
 @app.get("/api/overview")
-async def get_overview(request: Request):
+async def get_overview(request: Request, user: dict = Depends(verify_access_token)):
     """Get dashboard overview statistics with caching"""
     try:
         # Use async caching
@@ -652,7 +652,7 @@ async def get_overview(request: Request):
         else:
             trend = 100 if today_interviews > 0 else 0
         
-        logger.info(f"Overview: {total_interviews} total, {active_interviews} active, {avg_duration:.1f}s avg")
+        logger.info(f"Overview requested by {user['email']}: {total_interviews} total, {active_interviews} active, {avg_duration:.1f}s avg")
         
         return {
             "total_interviews": total_interviews,
@@ -660,7 +660,8 @@ async def get_overview(request: Request):
             "avg_duration": round(avg_duration),
             "trend_percentage": round(trend, 1),
             "assistant_name": ASSISTANT_NAME,
-            "last_updated": datetime.now().isoformat()
+            "last_updated": datetime.now().isoformat(),
+            "user_access_level": user['access_level']
         }
     except Exception as e:
         logger.error(f"Error in get_overview: {e}")
