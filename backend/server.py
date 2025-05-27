@@ -342,7 +342,8 @@ async def get_overview():
 @app.get("/api/themes")
 async def get_themes(days: int = Query(7, description="Number of days to look back")):
     """Get theme analysis with sentiment"""
-    transcripts = [interview['transcript'] for interview in MOCK_INTERVIEWS]
+    interviews = await fetch_vapi_calls()
+    transcripts = [interview['transcript'] for interview in interviews if interview['transcript']]
     themes_data = extract_themes_with_clustering(transcripts)
     
     # Process themes for frontend
@@ -369,7 +370,7 @@ async def get_themes(days: int = Query(7, description="Number of days to look ba
                 'negative': sentiment_counts.get('negative', 0)
             },
             'sample_quotes': dict(quotes_by_sentiment),
-            'is_new': theme_name in ['atmosfære', 'økologi']  # Mock new themes
+            'is_new': False  # You could implement logic to detect new themes
         })
     
     # Sort by total mentions
