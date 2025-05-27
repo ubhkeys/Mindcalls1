@@ -541,7 +541,7 @@ MOCK_INTERVIEWS = [
             "prisniveau_kvalitet": 6,
             "samlet_karakter": 6
         },
-        "transcript": "Lange køer ved kasserne - man skal vente alt for længe. Udvalget er okay, man kan finde det meste. Butikken er lidt rodet og ikke så overskuelig som den kunne være. Personalet er okay, men ikke særlig imødekommende. Priserne er middel.",
+        "transcript": "User: Lange køer ved kasserne - man skal vente alt for længe. User: Udvalget er okay, man kan finde det meste. User: Butikken er lidt rodet og ikke så overskuelig som den kunne være. User: Personalet er okay, men ikke særlig imødekommende. User: Priserne er middel.",
         "themes": ["kø", "udvalg", "indretning", "personale", "priser"]
     }
 ]
