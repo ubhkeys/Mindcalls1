@@ -662,14 +662,50 @@ def extract_themes_with_clustering(transcripts: List[str]) -> Dict[str, List[Dic
                 sentences = transcript.split('.')
                 relevant_quote = transcript  # fallback
                 
+                # Find the best user quote (not AI)
                 for sentence in sentences:
                     sentence_lower = sentence.lower()
-                    if any(keyword in sentence_lower for keyword in theme_config['keywords']):
-                        relevant_quote = sentence.strip()
-                        if relevant_quote:
+                    sentence_stripped = sentence.strip()
+                    
+                    # Skip AI responses - only include user responses
+                    if sentence_stripped.startswith('AI:') or sentence_stripped.startswith('ai:'):
+                        continue
+                    
+                    # Look for user responses or direct customer feedback
+                    if (sentence_stripped.startswith('User:') or sentence_stripped.startswith('user:') or
+                        any(keyword in sentence_lower for keyword in theme_config['keywords'])):
+                        
+                        # Clean up the quote
+                        clean_quote = sentence_stripped
+                        if clean_quote.startswith('User:') or clean_quote.startswith('user:'):
+                            clean_quote = clean_quote[5:].strip()  # Remove "User:" prefix
+                        
+                        if clean_quote and len(clean_quote) > 10:  # Must be meaningful
+                            relevant_quote = clean_quote
                             break
                 
-                # Ensure the quote is not too long
+                # If we couldn't find a good user quote, try to extract from the whole transcript
+                if relevant_quote == transcript or relevant_quote.startswith('AI:') or relevant_quote.startswith('ai:'):
+                    # Look for user responses in the transcript
+                    user_parts = []
+                    lines = transcript.split('\n')
+                    for line in lines:
+                        line_stripped = line.strip()
+                        if line_stripped.startswith('User:') or line_stripped.startswith('user:'):
+                            user_part = line_stripped[5:].strip() if line_stripped.startswith(('User:', 'user:')) else line_stripped
+                            if any(keyword in user_part.lower() for keyword in theme_config['keywords']):
+                                user_parts.append(user_part)
+                    
+                    if user_parts:
+                        relevant_quote = user_parts[0]  # Take the first relevant user response
+                    else:
+                        # Skip this entry if we can't find a valid user quote
+                        continue
+                
+                # Ensure the quote is not too long and doesn't contain AI content
+                if 'AI:' in relevant_quote or 'ai:' in relevant_quote:
+                    continue  # Skip quotes that still contain AI content
+                    
                 if len(relevant_quote) > 200:
                     relevant_quote = relevant_quote[:200] + '...'
                 
