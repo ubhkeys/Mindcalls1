@@ -573,15 +573,236 @@ class VapiDashboardTester:
             
         return self.tests_passed == self.tests_run
 
+def test_theme_specific_quotes(tester):
+    """Test that theme quotes are specific to each theme"""
+    if not tester.access_token:
+        print("❌ Cannot test theme-specific quotes without a valid token")
+        tester.failures.append("Theme-Specific Quotes: No token available")
+        return False
+        
+    success, data = tester.run_test(
+        "Theme-Specific Quotes",
+        "GET",
+        "themes"
+    )
+    
+    if success:
+        # Validate response structure
+        if "themes" not in data:
+            print("❌ Missing 'themes' field in response")
+            tester.failures.append("Theme-Specific Quotes: Missing 'themes' field")
+            return False
+            
+        # Check if themes data is non-empty
+        if not data["themes"]:
+            print("❌ Themes list is empty")
+            tester.failures.append("Theme-Specific Quotes: Empty themes list")
+            return False
+        
+        # Check specific themes
+        theme_keywords = {
+            "udvalg": ["udvalg", "varer", "sortiment", "produkter", "selection"],
+            "personale": ["personale", "kassedame", "ekspedient", "service", "hjælp"],
+            "priser": ["pris", "billig", "dyr", "høj", "rimelig"],
+            "indretning": ["indretning", "overskuelig", "navigation", "stor", "lille"]
+        }
+        
+        found_themes = {}
+        for theme in data["themes"]:
+            theme_name = theme["name"].lower()
+            for key, keywords in theme_keywords.items():
+                if any(keyword in theme_name for keyword in keywords):
+                    found_themes[key] = theme
+                    break
+        
+        # Check if we found all the required themes
+        missing_themes = [key for key in theme_keywords.keys() if key not in found_themes]
+        if missing_themes:
+            print(f"❌ Missing required themes: {', '.join(missing_themes)}")
+            tester.failures.append(f"Theme-Specific Quotes: Missing themes: {', '.join(missing_themes)}")
+            return False
+        
+        # Check if each theme has relevant quotes
+        all_quotes_relevant = True
+        for theme_key, theme_data in found_themes.items():
+            keywords = theme_keywords[theme_key]
+            
+            # Check quotes for each sentiment
+            for sentiment in ["positive", "neutral", "negative"]:
+                if sentiment in theme_data["sample_quotes"] and theme_data["sample_quotes"][sentiment]:
+                    relevant_quotes = 0
+                    total_quotes = len(theme_data["sample_quotes"][sentiment])
+                    
+                    for quote in theme_data["sample_quotes"][sentiment]:
+                        quote_text = quote["text"].lower()
+                        if any(keyword in quote_text for keyword in keywords):
+                            relevant_quotes += 1
+                    
+                    relevance_percentage = (relevant_quotes / total_quotes) * 100 if total_quotes > 0 else 0
+                    if relevance_percentage < 50:  # At least half the quotes should be relevant
+                        print(f"❌ {theme_key.capitalize()} theme has low relevance ({relevance_percentage:.1f}%) for {sentiment} quotes")
+                        tester.failures.append(f"Theme-Specific Quotes: {theme_key} has low relevance for {sentiment} quotes")
+                        all_quotes_relevant = False
+                    else:
+                        print(f"✅ {theme_key.capitalize()} theme has {relevance_percentage:.1f}% relevant {sentiment} quotes")
+        
+        return all_quotes_relevant
+    return False
+
+def test_sentiment_accuracy(tester):
+    """Test that sentiment analysis matches quote content"""
+    if not tester.access_token:
+        print("❌ Cannot test sentiment accuracy without a valid token")
+        tester.failures.append("Sentiment Accuracy: No token available")
+        return False
+        
+    success, data = tester.run_test(
+        "Sentiment Accuracy",
+        "GET",
+        "themes"
+    )
+    
+    if success:
+        # Validate response structure
+        if "themes" not in data:
+            print("❌ Missing 'themes' field in response")
+            tester.failures.append("Sentiment Accuracy: Missing 'themes' field")
+            return False
+            
+        # Check if themes data is non-empty
+        if not data["themes"]:
+            print("❌ Themes list is empty")
+            tester.failures.append("Sentiment Accuracy: Empty themes list")
+            return False
+        
+        # Sentiment keywords
+        sentiment_keywords = {
+            "positive": ["godt", "fantastisk", "dejlig", "venligt", "søde", "professionelt", "gode", "overskuelig", "let", "hurtig"],
+            "negative": ["dårligt", "stresset", "høje", "begrænset", "svært", "ikke", "dyre", "lang", "rodet"]
+        }
+        
+        # Check sentiment accuracy for each theme
+        sentiment_accuracy = True
+        for theme in data["themes"]:
+            for sentiment in ["positive", "negative"]:
+                if sentiment in theme["sample_quotes"] and theme["sample_quotes"][sentiment]:
+                    matching_quotes = 0
+                    total_quotes = len(theme["sample_quotes"][sentiment])
+                    
+                    for quote in theme["sample_quotes"][sentiment]:
+                        quote_text = quote["text"].lower()
+                        # Check if quote contains keywords matching its sentiment
+                        if any(keyword in quote_text for keyword in sentiment_keywords[sentiment]):
+                            matching_quotes += 1
+                    
+                    accuracy_percentage = (matching_quotes / total_quotes) * 100 if total_quotes > 0 else 0
+                    if accuracy_percentage < 50:  # At least half should match
+                        print(f"❌ {theme['name']} theme has low sentiment accuracy ({accuracy_percentage:.1f}%) for {sentiment} quotes")
+                        tester.failures.append(f"Sentiment Accuracy: {theme['name']} has low accuracy for {sentiment} quotes")
+                        sentiment_accuracy = False
+                    else:
+                        print(f"✅ {theme['name']} theme has {accuracy_percentage:.1f}% accurate {sentiment} quotes")
+        
+        return sentiment_accuracy
+    return False
+
+def test_quote_length(tester):
+    """Test that quotes are sentence-based, not full transcripts"""
+    if not tester.access_token:
+        print("❌ Cannot test quote length without a valid token")
+        tester.failures.append("Quote Length: No token available")
+        return False
+        
+    success, data = tester.run_test(
+        "Quote Length",
+        "GET",
+        "themes"
+    )
+    
+    if success:
+        # Validate response structure
+        if "themes" not in data:
+            print("❌ Missing 'themes' field in response")
+            tester.failures.append("Quote Length: Missing 'themes' field")
+            return False
+            
+        # Check if themes data is non-empty
+        if not data["themes"]:
+            print("❌ Themes list is empty")
+            tester.failures.append("Quote Length: Empty themes list")
+            return False
+        
+        # Check quote lengths
+        all_quotes_appropriate = True
+        for theme in data["themes"]:
+            for sentiment in ["positive", "neutral", "negative"]:
+                if sentiment in theme["sample_quotes"] and theme["sample_quotes"][sentiment]:
+                    for quote in theme["sample_quotes"][sentiment]:
+                        quote_text = quote["text"]
+                        
+                        # Check if quote is too long (likely a full transcript)
+                        if len(quote_text) > 200:
+                            print(f"❌ Quote in {theme['name']} is too long ({len(quote_text)} chars): {quote_text[:50]}...")
+                            tester.failures.append(f"Quote Length: Quote in {theme['name']} is too long")
+                            all_quotes_appropriate = False
+                        
+                        # Check if quote contains multiple sentences (should be single sentence)
+                        sentences = [s for s in quote_text.split('.') if s.strip()]
+                        if len(sentences) > 2:  # Allow for 2 sentences max
+                            print(f"❌ Quote in {theme['name']} has too many sentences ({len(sentences)}): {quote_text[:50]}...")
+                            tester.failures.append(f"Quote Length: Quote in {theme['name']} has too many sentences")
+                            all_quotes_appropriate = False
+        
+        if all_quotes_appropriate:
+            print("✅ All quotes are appropriately sized (sentence-based, not full transcripts)")
+        
+        return all_quotes_appropriate
+    return False
+
 def main():
     # Get backend URL from frontend .env
     backend_url = "https://83624c61-ccb9-4125-a85a-5be1f58ae949.preview.emergentagent.com"
     
     # Run tests
     tester = VapiDashboardTester(backend_url)
-    success = tester.run_all_tests()
     
-    return 0 if success else 1
+    print("🚀 Starting Vapi Dashboard API Tests for Improved Features")
+    
+    # Login with a valid code for tests
+    print("\n=== Logging in for Testing ===")
+    login_success = tester.test_login("test@example.com", "SUPER2024")
+    
+    if not login_success:
+        print("❌ Login failed, cannot proceed with tests")
+        return 1
+    
+    # Test the specific improvements
+    print("\n=== Testing Theme-Specific Quotes ===")
+    theme_quotes_success = test_theme_specific_quotes(tester)
+    
+    print("\n=== Testing Sentiment Analysis Accuracy ===")
+    sentiment_success = test_sentiment_accuracy(tester)
+    
+    print("\n=== Testing Quote Length (Sentence-based vs Full Transcript) ===")
+    quote_length_success = test_quote_length(tester)
+    
+    # Test logout
+    print("\n=== Testing Logout ===")
+    tester.test_logout()
+    
+    # Print results
+    print("\n📊 Test Results:")
+    print(f"Tests passed: {tester.tests_passed}/{tester.tests_run}")
+    
+    if tester.failures:
+        print("\n❌ Failures:")
+        for failure in tester.failures:
+            print(f"  - {failure}")
+    else:
+        print("\n✅ All tests passed!")
+    
+    # Return success if all specific tests passed
+    return 0 if theme_quotes_success and sentiment_success and quote_length_success else 1
 
 if __name__ == "__main__":
     sys.exit(main())
