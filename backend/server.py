@@ -1018,6 +1018,20 @@ async def get_full_interview(interview_id: str, user: dict = Depends(verify_acce
         # Anonymize the transcript
         anonymized_transcript = anonymize_transcript(target_interview['transcript'])
         
+        # Parse transcript into segments for editing
+        segments = parse_transcript_segments(anonymized_transcript)
+        
+        # Add any existing edits and tags
+        if interview_id in interview_edits:
+            for segment in segments:
+                if segment['id'] in interview_edits[interview_id]:
+                    segment['edited_text'] = interview_edits[interview_id][segment['id']]
+        
+        if interview_id in interview_tags:
+            for segment in segments:
+                if segment['id'] in interview_tags[interview_id]:
+                    segment['tags'] = interview_tags[interview_id][segment['id']]
+        
         # Return full interview with anonymized transcript
         return {
             "id": target_interview['id'],
@@ -1027,8 +1041,10 @@ async def get_full_interview(interview_id: str, user: dict = Depends(verify_acce
             "status": target_interview['status'],
             "ratings": target_interview['ratings'],
             "transcript": anonymized_transcript,
+            "segments": segments,
             "original_length": len(target_interview['transcript']),
-            "anonymized": True
+            "anonymized": True,
+            "editable": 'Premium' in user.get('access_level', '') or 'Admin' in user.get('access_level', '')
         }
         
     except HTTPException:
