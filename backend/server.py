@@ -251,6 +251,38 @@ def verify_access_token(credentials: HTTPAuthorizationCredentials = Depends(secu
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Ugyldig adgangstoken")
 
+def verify_superuser(user: dict = Depends(verify_access_token)):
+    """Verify user has superuser privileges"""
+    if 'Premium' not in user.get('access_level', '') and 'Admin' not in user.get('access_level', ''):
+        raise HTTPException(status_code=403, detail="Kun superbrugere kan redigere interviews")
+    return user
+
+def parse_transcript_segments(transcript: str) -> List[Dict]:
+    """Parse transcript into editable segments"""
+    if not transcript:
+        return []
+    
+    segments = []
+    # Split by AI: and User: patterns
+    parts = re.split(r'(AI:|User:)', transcript)
+    
+    current_speaker = None
+    segment_id = 0
+    
+    for i, part in enumerate(parts):
+        if part.strip() in ['AI:', 'User:']:
+            current_speaker = part.strip()
+        elif part.strip() and current_speaker:
+            segments.append({
+                'id': f'segment_{segment_id}',
+                'speaker': current_speaker.replace(':', ''),
+                'text': part.strip(),
+                'editable': current_speaker == 'User:'  # Only user segments are editable
+            })
+            segment_id += 1
+    
+    return segments
+
 # Authentication endpoints
 @app.post("/api/auth/login")
 async def login(request: LoginRequest):
