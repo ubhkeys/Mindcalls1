@@ -196,6 +196,22 @@ class UserSession(BaseModel):
     access_code: str
     access_level: str
     created_at: datetime
+
+class SegmentEdit(BaseModel):
+    interview_id: str
+    segment_id: str
+    edited_text: str
+
+class SegmentTag(BaseModel):
+    interview_id: str
+    segment_id: str
+    sentiment: Optional[str] = None  # positive, neutral, negative
+    theme: Optional[str] = None
+    notes: Optional[str] = None
+
+class CreateTheme(BaseModel):
+    name: str
+    description: Optional[str] = None
     
 # Security
 security = HTTPBearer(auto_error=False)
