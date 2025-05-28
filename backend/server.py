@@ -1053,6 +1053,87 @@ async def get_full_interview(interview_id: str, user: dict = Depends(verify_acce
         logger.error(f"Error in get_full_interview: {e}")
         raise HTTPException(status_code=500, detail="Kunne ikke hente interview")
 
+@app.post("/api/interview/edit")
+async def edit_interview_segment(edit: SegmentEdit, user: dict = Depends(verify_superuser)):
+    """Edit a segment of an interview transcript (superuser only)"""
+    try:
+        if edit.interview_id not in interview_edits:
+            interview_edits[edit.interview_id] = {}
+        
+        interview_edits[edit.interview_id][edit.segment_id] = edit.edited_text
+        
+        logger.info(f"Segment {edit.segment_id} in interview {edit.interview_id} edited by {user['email']}")
+        
+        return {
+            "success": True,
+            "message": "Segment redigeret succesfuldt",
+            "interview_id": edit.interview_id,
+            "segment_id": edit.segment_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in edit_interview_segment: {e}")
+        raise HTTPException(status_code=500, detail="Kunne ikke redigere segment")
+
+@app.post("/api/interview/tag")
+async def tag_interview_segment(tag: SegmentTag, user: dict = Depends(verify_superuser)):
+    """Add sentiment/theme tags to an interview segment (superuser only)"""
+    try:
+        if tag.interview_id not in interview_tags:
+            interview_tags[tag.interview_id] = {}
+        
+        if tag.segment_id not in interview_tags[tag.interview_id]:
+            interview_tags[tag.interview_id][tag.segment_id] = {}
+        
+        if tag.sentiment:
+            interview_tags[tag.interview_id][tag.segment_id]['sentiment'] = tag.sentiment
+        if tag.theme:
+            interview_tags[tag.interview_id][tag.segment_id]['theme'] = tag.theme
+        if tag.notes:
+            interview_tags[tag.interview_id][tag.segment_id]['notes'] = tag.notes
+        
+        logger.info(f"Segment {tag.segment_id} in interview {tag.interview_id} tagged by {user['email']}")
+        
+        return {
+            "success": True,
+            "message": "Tag tilføjet succesfuldt",
+            "interview_id": tag.interview_id,
+            "segment_id": tag.segment_id,
+            "tags": interview_tags[tag.interview_id][tag.segment_id]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in tag_interview_segment: {e}")
+        raise HTTPException(status_code=500, detail="Kunne ikke tagge segment")
+
+@app.get("/api/themes/available")
+async def get_available_themes(user: dict = Depends(verify_access_token)):
+    """Get list of available themes"""
+    return {"themes": available_themes}
+
+@app.post("/api/themes/create")
+async def create_theme(theme: CreateTheme, user: dict = Depends(verify_superuser)):
+    """Create a new theme (superuser only)"""
+    try:
+        theme_name = theme.name.lower().strip()
+        if theme_name not in available_themes:
+            available_themes.append(theme_name)
+            logger.info(f"New theme '{theme_name}' created by {user['email']}")
+            
+            return {
+                "success": True,
+                "message": "Tema oprettet succesfuldt",
+                "theme": theme_name
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Tema eksisterer allerede"
+            }
+    except Exception as e:
+        logger.error(f"Error in create_theme: {e}")
+        raise HTTPException(status_code=500, detail="Kunne ikke oprette tema")
+
 @app.get("/api/supermarkets")
 async def get_supermarkets():
     """Get list of supermarkets from interviews"""
