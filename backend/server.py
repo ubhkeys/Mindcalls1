@@ -25,6 +25,11 @@ from functools import wraps
 import jwt
 import hashlib
 
+# In-memory storage for edits and tags (in production, use proper database)
+interview_edits = {}  # interview_id -> {segment_id -> edited_text}
+interview_tags = {}   # interview_id -> {segment_id -> {sentiment, theme, notes}}
+available_themes = ['udvalg', 'personale', 'priser', 'indretning', 'kø', 'atmosfære', 'renlighed', 'friskhed']
+
 # Load environment variables
 load_dotenv()
 
