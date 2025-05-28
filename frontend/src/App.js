@@ -837,8 +837,8 @@ const RatingsWidget = ({ ratings, isLoading }) => {
   );
 };
 
-// Response Log Widget
-const ResponseLogWidget = ({ interviews, isLoading }) => {
+// Overview Statistics Widget
+const OverviewWidget = ({ overview, isLoading }) => {
   const [filter, setFilter] = useState('');
 
   if (isLoading) {
