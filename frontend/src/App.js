@@ -122,12 +122,30 @@ const ErrorMessage = ({ message, onRetry }) => (
   </div>
 );
 
-// Interview Reader Widget - NEW!
-const InterviewReaderWidget = ({ interviews, isLoading }) => {
+// Enhanced Interview Reader Widget - With editing capabilities
+const EnhancedInterviewReaderWidget = ({ interviews, isLoading, user }) => {
   const [selectedInterview, setSelectedInterview] = useState(null);
   const [fullTranscript, setFullTranscript] = useState(null);
   const [loadingTranscript, setLoadingTranscript] = useState(false);
   const [filter, setFilter] = useState('');
+  const [editingSegment, setEditingSegment] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [availableThemes, setAvailableThemes] = useState([]);
+
+  const isEditable = user?.accessLevel?.includes('Premium') || user?.accessLevel?.includes('Admin');
+
+  // Fetch available themes on mount
+  useEffect(() => {
+    const fetchThemes = async () => {
+      try {
+        const data = await apiCall('themes/available');
+        setAvailableThemes(data.themes || []);
+      } catch (error) {
+        console.error('Error fetching themes:', error);
+      }
+    };
+    fetchThemes();
+  }, []);
 
   const fetchFullTranscript = async (interviewId) => {
     setLoadingTranscript(true);
@@ -140,6 +158,56 @@ const InterviewReaderWidget = ({ interviews, isLoading }) => {
     } finally {
       setLoadingTranscript(false);
     }
+  };
+
+  const handleEditSegment = async (segmentId, newText) => {
+    if (!isEditable) return;
+    
+    try {
+      await apiCall('interview/edit', {
+        method: 'POST',
+        body: JSON.stringify({
+          interview_id: selectedInterview,
+          segment_id: segmentId,
+          edited_text: newText
+        })
+      });
+      
+      // Refresh transcript
+      await fetchFullTranscript(selectedInterview);
+      setEditingSegment(null);
+    } catch (error) {
+      console.error('Error editing segment:', error);
+    }
+  };
+
+  const handleTagSegment = async (segmentId, sentiment, theme, notes) => {
+    if (!isEditable) return;
+    
+    try {
+      await apiCall('interview/tag', {
+        method: 'POST',
+        body: JSON.stringify({
+          interview_id: selectedInterview,
+          segment_id: segmentId,
+          sentiment,
+          theme,
+          notes
+        })
+      });
+      
+      // Refresh transcript
+      await fetchFullTranscript(selectedInterview);
+    } catch (error) {
+      console.error('Error tagging segment:', error);
+    }
+  };
+
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds === 0) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   if (isLoading) {
@@ -166,7 +234,14 @@ const InterviewReaderWidget = ({ interviews, isLoading }) => {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">📖 Interview Læser</h2>
+        <div className="flex items-center space-x-4">
+          <h2 className="text-2xl font-bold text-gray-800">📖 Interview Læser</h2>
+          {isEditable && (
+            <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full font-medium">
+              👑 Redigeringstilstand
+            </span>
+          )}
+        </div>
         <input
           type="text"
           placeholder="Søg i interviews..."
@@ -213,7 +288,9 @@ const InterviewReaderWidget = ({ interviews, isLoading }) => {
                 </p>
                 <div className="flex justify-between items-center mt-2">
                   <div className="text-sm text-gray-500">
-                    Varighed: {interview?.duration ? Math.floor(interview.duration / 60) : 0}:{interview?.duration ? (interview.duration % 60).toString().padStart(2, '0') : '00'}
+                    <span className="font-medium text-blue-600">
+                      Varighed: {formatDuration(interview?.duration)}
+                    </span>
                   </div>
                   <div className="text-sm font-medium text-blue-600">
                     Samlet: {interview?.ratings?.samlet_karakter || 'N/A'}/10
@@ -228,16 +305,17 @@ const InterviewReaderWidget = ({ interviews, isLoading }) => {
           </div>
         </div>
 
-        {/* Full Transcript Display */}
+        {/* Enhanced Transcript Display */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Fuldt Referat</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Interview Transskription</h3>
           
           {loadingTranscript ? (
             <div className="flex items-center justify-center py-12">
-              <LoadingSpinner message="Indlæser referat..." />
+              <LoadingSpinner message="Indlæser interview..." />
             </div>
           ) : fullTranscript ? (
             <div className="bg-gray-50 rounded-lg p-6">
+              {/* Interview Header */}
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <div className="flex justify-between items-start mb-2">
                   <h4 className="text-lg font-semibold text-gray-800">
@@ -248,20 +326,44 @@ const InterviewReaderWidget = ({ interviews, isLoading }) => {
                   </span>
                 </div>
                 <div className="flex items-center space-x-4 text-sm text-gray-600">
-                  <span>Varighed: {Math.floor(fullTranscript.duration / 60)}:{(fullTranscript.duration % 60).toString().padStart(2, '0')}</span>
+                  <span className="font-medium text-blue-600">
+                    Varighed: {formatDuration(fullTranscript.duration)}
+                  </span>
                   <span>Status: {fullTranscript.status === 'completed' ? 'Gennemført' : 'Aktiv'}</span>
                   <span className="text-blue-600">🔒 Anonymiseret</span>
+                  {fullTranscript.editable && (
+                    <span className="text-purple-600">✏️ Redigerbar</span>
+                  )}
                 </div>
               </div>
               
-              <div className="max-h-96 overflow-y-auto">
-                <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                    {fullTranscript.transcript}
+              {/* Segmented Transcript */}
+              <div className="max-h-96 overflow-y-auto space-y-4">
+                {fullTranscript.segments && fullTranscript.segments.length > 0 ? (
+                  fullTranscript.segments.map((segment, index) => (
+                    <SegmentDisplay 
+                      key={segment.id}
+                      segment={segment}
+                      isEditable={isEditable && segment.editable}
+                      availableThemes={availableThemes}
+                      onEdit={handleEditSegment}
+                      onTag={handleTagSegment}
+                      editingSegment={editingSegment}
+                      setEditingSegment={setEditingSegment}
+                      editText={editText}
+                      setEditText={setEditText}
+                    />
+                  ))
+                ) : (
+                  <div className="prose prose-sm max-w-none">
+                    <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                      {fullTranscript.transcript}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               
+              {/* Ratings Summary */}
               {fullTranscript.ratings && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <h5 className="font-medium text-gray-800 mb-2">Karakterer:</h5>
@@ -282,10 +384,207 @@ const InterviewReaderWidget = ({ interviews, isLoading }) => {
               <div className="text-gray-400 text-6xl mb-4">📖</div>
               <h4 className="text-lg font-medium text-gray-600 mb-2">Vælg et Interview</h4>
               <p className="text-gray-500">Klik på et interview til venstre for at læse det fulde anonymiserede referat</p>
+              {isEditable && (
+                <p className="text-purple-600 text-sm mt-2">✏️ Du kan redigere og tagge kundesvar</p>
+              )}
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+// Segment Display Component for individual transcript segments
+const SegmentDisplay = ({ 
+  segment, 
+  isEditable, 
+  availableThemes, 
+  onEdit, 
+  onTag, 
+  editingSegment, 
+  setEditingSegment, 
+  editText, 
+  setEditText 
+}) => {
+  const [showTagging, setShowTagging] = useState(false);
+  const [selectedSentiment, setSelectedSentiment] = useState(segment.tags?.sentiment || '');
+  const [selectedTheme, setSelectedTheme] = useState(segment.tags?.theme || '');
+  const [notes, setNotes] = useState(segment.tags?.notes || '');
+
+  const getSentimentColor = (sentiment) => {
+    switch (sentiment) {
+      case 'positive': return 'bg-green-100 text-green-800';
+      case 'negative': return 'bg-red-100 text-red-800';
+      case 'neutral': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const startEdit = () => {
+    setEditingSegment(segment.id);
+    setEditText(segment.edited_text || segment.text);
+  };
+
+  const saveEdit = () => {
+    onEdit(segment.id, editText);
+  };
+
+  const cancelEdit = () => {
+    setEditingSegment(null);
+    setEditText('');
+  };
+
+  const saveTags = () => {
+    onTag(segment.id, selectedSentiment, selectedTheme, notes);
+    setShowTagging(false);
+  };
+
+  return (
+    <div className={`p-4 rounded-lg border ${
+      segment.speaker === 'AI' 
+        ? 'bg-blue-50 border-blue-200' 
+        : 'bg-white border-gray-200'
+    }`}>
+      <div className="flex justify-between items-start mb-2">
+        <span className={`text-xs font-medium px-2 py-1 rounded ${
+          segment.speaker === 'AI' 
+            ? 'bg-blue-100 text-blue-800' 
+            : 'bg-green-100 text-green-800'
+        }`}>
+          {segment.speaker === 'AI' ? '🤖 AI' : '👤 Kunde'}
+        </span>
+        
+        {isEditable && segment.editable && (
+          <div className="flex space-x-2">
+            {editingSegment === segment.id ? (
+              <>
+                <button 
+                  onClick={saveEdit}
+                  className="text-green-600 hover:text-green-800 text-sm"
+                >
+                  ✓ Gem
+                </button>
+                <button 
+                  onClick={cancelEdit}
+                  className="text-red-600 hover:text-red-800 text-sm"
+                >
+                  ✗ Annuller
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={startEdit}
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  ✏️ Rediger
+                </button>
+                <button 
+                  onClick={() => setShowTagging(!showTagging)}
+                  className="text-purple-600 hover:text-purple-800 text-sm"
+                >
+                  🏷️ Tag
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Segment Text */}
+      {editingSegment === segment.id ? (
+        <textarea 
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          className="w-full p-2 border border-gray-300 rounded resize-none"
+          rows={3}
+        />
+      ) : (
+        <p className="text-gray-700 leading-relaxed">
+          {segment.edited_text || segment.text}
+        </p>
+      )}
+      
+      {/* Tags Display */}
+      {segment.tags && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {segment.tags.sentiment && (
+            <span className={`px-2 py-1 text-xs rounded ${getSentimentColor(segment.tags.sentiment)}`}>
+              {segment.tags.sentiment}
+            </span>
+          )}
+          {segment.tags.theme && (
+            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+              {segment.tags.theme}
+            </span>
+          )}
+          {segment.tags.notes && (
+            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
+              📝 {segment.tags.notes}
+            </span>
+          )}
+        </div>
+      )}
+      
+      {/* Tagging Interface */}
+      {showTagging && isEditable && (
+        <div className="mt-3 p-3 bg-gray-50 rounded border">
+          <h6 className="font-medium text-gray-800 mb-2">Tilføj Tags</h6>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Sentiment</label>
+              <select 
+                value={selectedSentiment}
+                onChange={(e) => setSelectedSentiment(e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+              >
+                <option value="">Vælg sentiment</option>
+                <option value="positive">Positiv</option>
+                <option value="neutral">Neutral</option>
+                <option value="negative">Negativ</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Tema</label>
+              <select 
+                value={selectedTheme}
+                onChange={(e) => setSelectedTheme(e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+              >
+                <option value="">Vælg tema</option>
+                {availableThemes.map(theme => (
+                  <option key={theme} value={theme}>{theme}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="mt-2">
+            <label className="block text-xs text-gray-600 mb-1">Noter</label>
+            <input 
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Tilføj noter..."
+              className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+            />
+          </div>
+          <div className="mt-3 flex justify-end space-x-2">
+            <button 
+              onClick={() => setShowTagging(false)}
+              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+            >
+              Annuller
+            </button>
+            <button 
+              onClick={saveTags}
+              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Gem Tags
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
