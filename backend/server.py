@@ -415,7 +415,28 @@ def process_vapi_calls(vapi_calls):
             status = call.get('status', 'unknown')
             created_at = call.get('createdAt', datetime.now().isoformat())
             ended_at = call.get('endedAt')
-            duration = call.get('duration', 0) or 0
+            # Extract or calculate duration
+            duration = 0
+            if call.get('duration'):
+                duration = int(call.get('duration'))
+            elif call.get('startedAt') and call.get('endedAt'):
+                # Calculate duration from timestamps
+                try:
+                    from datetime import datetime
+                    start_time = datetime.fromisoformat(call['startedAt'].replace('Z', '+00:00'))
+                    end_time = datetime.fromisoformat(call['endedAt'].replace('Z', '+00:00'))
+                    duration = int((end_time - start_time).total_seconds())
+                except:
+                    duration = 0
+            elif call.get('createdAt') and call.get('endedAt'):
+                # Fallback to created/ended times
+                try:
+                    from datetime import datetime
+                    start_time = datetime.fromisoformat(call['createdAt'].replace('Z', '+00:00'))
+                    end_time = datetime.fromisoformat(call['endedAt'].replace('Z', '+00:00'))
+                    duration = int((end_time - start_time).total_seconds())
+                except:
+                    duration = 0
             
             # Extract transcript
             transcript = ""
